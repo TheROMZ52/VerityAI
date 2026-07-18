@@ -18,8 +18,9 @@ import java.util.function.Consumer;
  *  - streaming (SSE) with a per-chunk callback
  *  - multiple API keys (tries the next one on auth/rate-limit failures)
  *  - a fallback model list (tries the next model if the primary fails)
- *  - automatic retries with backoff for transient errors (429 / 5xx) on the
- *    SAME key/model before moving on, since those are often momentary
+ *  - automatic retries with backoff for transient errors (429 / 5xx, and
+ *    connect timeouts/refused connections) on the SAME key/model before
+ *    moving on, since those are often momentary
  *  - configurable connect/request timeouts (ai.connect-timeout-seconds,
  *    ai.request-timeout-seconds)
  */
@@ -125,60 +126,75 @@ public class OpenRouterClient {
         Exception lastError = null;
         String usedModel = models.isEmpty() ? cfg.getModel() : models.get(0);
         int totalTokens = 0;
+        int maxRetries = cfg.getMaxRetriesPerKey();
 
         for (String model : models) {
             for (String key : keys) {
-                try {
-                    usedModel = model;
-                    JsonArray convo = deepCopy(messages);
-                    for (int round = 0; round < Math.max(1, maxRounds); round++) {
-                        RawResult raw = doBlockingRequest(convo, model, key, cfg.getApiUrl(), cfg.getMaxTokens(), cfg.getTemperature(), tools);
-                        totalTokens += raw.totalTokens();
+                for (int attempt = 0; attempt <= maxRetries; attempt++) {
+                    try {
+                        usedModel = model;
+                        JsonArray convo = deepCopy(messages);
+                        int roundTokens = 0;
+                        for (int round = 0; round < Math.max(1, maxRounds); round++) {
+                            RawResult raw = doBlockingRequest(convo, model, key, cfg.getApiUrl(), cfg.getMaxTokens(), cfg.getTemperature(), tools);
+                            roundTokens += raw.totalTokens();
 
-                        if (raw.toolCalls() == null || raw.toolCalls().isEmpty()) {
-                            return new AiResult(raw.content() == null ? "" : raw.content(), model, totalTokens);
-                        }
-
-                        // Record the assistant's tool-call request, then run each tool and append its result.
-                        JsonObject assistantMsg = new JsonObject();
-                        assistantMsg.addProperty("role", "assistant");
-                        assistantMsg.addProperty("content", raw.content() == null ? "" : raw.content());
-                        JsonArray toolCallsJson = new JsonArray();
-                        for (ToolCall call : raw.toolCalls()) {
-                            JsonObject tc = new JsonObject();
-                            tc.addProperty("id", call.id());
-                            tc.addProperty("type", "function");
-                            JsonObject fn = new JsonObject();
-                            fn.addProperty("name", call.name());
-                            fn.addProperty("arguments", call.argumentsJson());
-                            tc.add("function", fn);
-                            toolCallsJson.add(tc);
-                        }
-                        assistantMsg.add("tool_calls", toolCallsJson);
-                        convo.add(assistantMsg);
-
-                        for (ToolCall call : raw.toolCalls()) {
-                            String result;
-                            try {
-                                result = executor.execute(call.name(), call.argumentsJson());
-                            } catch (Exception ex) {
-                                result = "Error running function: " + ex.getMessage();
+                            if (raw.toolCalls() == null || raw.toolCalls().isEmpty()) {
+                                return new AiResult(raw.content() == null ? "" : raw.content(), model, totalTokens + roundTokens);
                             }
-                            JsonObject toolMsg = new JsonObject();
-                            toolMsg.addProperty("role", "tool");
-                            toolMsg.addProperty("tool_call_id", call.id());
-                            toolMsg.addProperty("content", result);
-                            convo.add(toolMsg);
+
+                            // Record the assistant's tool-call request, then run each tool and append its result.
+                            JsonObject assistantMsg = new JsonObject();
+                            assistantMsg.addProperty("role", "assistant");
+                            assistantMsg.addProperty("content", raw.content() == null ? "" : raw.content());
+                            JsonArray toolCallsJson = new JsonArray();
+                            for (ToolCall call : raw.toolCalls()) {
+                                JsonObject tc = new JsonObject();
+                                tc.addProperty("id", call.id());
+                                tc.addProperty("type", "function");
+                                JsonObject fn = new JsonObject();
+                                fn.addProperty("name", call.name());
+                                fn.addProperty("arguments", call.argumentsJson());
+                                tc.add("function", fn);
+                                toolCallsJson.add(tc);
+                            }
+                            assistantMsg.add("tool_calls", toolCallsJson);
+                            convo.add(assistantMsg);
+
+                            for (ToolCall call : raw.toolCalls()) {
+                                String result;
+                                try {
+                                    result = executor.execute(call.name(), call.argumentsJson());
+                                } catch (Exception ex) {
+                                    result = "Error running function: " + ex.getMessage();
+                                }
+                                JsonObject toolMsg = new JsonObject();
+                                toolMsg.addProperty("role", "tool");
+                                toolMsg.addProperty("tool_call_id", call.id());
+                                toolMsg.addProperty("content", result);
+                                convo.add(toolMsg);
+                            }
+                            // loop continues: send the tool results back to the model for another round
                         }
-                        // loop continues: send the tool results back to the model for another round
+                        // Ran out of rounds — ask once more without tools to force a final answer.
+                        RawResult finalRaw = doBlockingRequest(convo, model, key, cfg.getApiUrl(), cfg.getMaxTokens(), cfg.getTemperature(), null);
+                        return new AiResult(finalRaw.content() == null ? "" : finalRaw.content(), model, totalTokens + roundTokens + finalRaw.totalTokens());
+                    } catch (TransientFailure tf) {
+                        lastError = tf;
+                        plugin.getDebugLogger().debug(String.format(
+                                "VerityAI: transient failure (HTTP %d) in function-calling for model=%s, attempt %d/%d — %s",
+                                tf.statusCode, model, attempt + 1, maxRetries + 1, tf.getMessage()));
+                        if (attempt < maxRetries) {
+                            sleepBackoff(attempt);
+                            continue;
+                        }
+                        // Retries exhausted for this key — fall through to the next key/model.
+                    } catch (Exception e) {
+                        lastError = e;
+                        plugin.getDebugLogger().debug("VerityAI: function-calling request failed for model=" + model
+                                + " (" + e.getMessage() + "), trying next option.");
                     }
-                    // Ran out of rounds — ask once more without tools to force a final answer.
-                    RawResult finalRaw = doBlockingRequest(convo, model, key, cfg.getApiUrl(), cfg.getMaxTokens(), cfg.getTemperature(), null);
-                    return new AiResult(finalRaw.content() == null ? "" : finalRaw.content(), model, totalTokens + finalRaw.totalTokens());
-                } catch (Exception e) {
-                    lastError = e;
-                    plugin.getDebugLogger().debug("VerityAI: function-calling request failed for model=" + model
-                            + " (" + e.getMessage() + "), trying next option.");
+                    break; // move to next key
                 }
             }
         }
@@ -310,7 +326,15 @@ public class OpenRouterClient {
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
                 .build();
 
-        HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response;
+        try {
+            response = httpClient().send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (java.net.http.HttpConnectTimeoutException | java.net.ConnectException e) {
+            // Couldn't even establish a connection (DNS hiccup, brief network blip, etc.) —
+            // treat like a transient failure so the caller's retry/backoff logic kicks in
+            // instead of immediately burning through the next key/model.
+            throw new TransientFailure(-1, "Connect failed: " + e.getMessage());
+        }
         if (response.statusCode() != 200) {
             throwForStatus(response.statusCode(), response.body());
         }
@@ -353,8 +377,12 @@ public class OpenRouterClient {
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
                 .build();
 
-        HttpResponse<java.util.stream.Stream<String>> response =
-                httpClient().send(request, HttpResponse.BodyHandlers.ofLines());
+        HttpResponse<java.util.stream.Stream<String>> response;
+        try {
+            response = httpClient().send(request, HttpResponse.BodyHandlers.ofLines());
+        } catch (java.net.http.HttpConnectTimeoutException | java.net.ConnectException e) {
+            throw new TransientFailure(-1, "Connect failed: " + e.getMessage());
+        }
 
         if (response.statusCode() != 200) {
             String errBody = response.body().reduce("", (a, b) -> a + b);

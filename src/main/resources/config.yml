@@ -29,10 +29,11 @@ ai:
   site-name: "VerityAI"
 
   # Network timeouts and automatic retries.
-  connect-timeout-seconds: 10
-  request-timeout-seconds: 45
+  connect-timeout-seconds: 20
+  request-timeout-seconds: 60
   # How many times to retry the SAME key/model on a transient error (HTTP 429
-  # rate-limited or 5xx server error) before moving on to the next key/model.
+  # rate-limited or 5xx server error, or a connect timeout/refused connection)
+  # before moving on to the next key/model.
   max-retries-per-key: 2
 
   # Real OpenAI-style function/tool calling: instead of Verity asking for

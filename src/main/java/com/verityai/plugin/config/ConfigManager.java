@@ -147,8 +147,8 @@ public class ConfigManager {
         this.siteUrl = c.getString("ai.site-url", "");
         this.siteName = c.getString("ai.site-name", "VerityAI");
         this.customKnowledge = c.getStringList("ai.custom-knowledge");
-        this.connectTimeoutSeconds = positiveOrDefault(c.getInt("ai.connect-timeout-seconds", 10), 10);
-        this.requestTimeoutSeconds = positiveOrDefault(c.getInt("ai.request-timeout-seconds", 45), 45);
+        this.connectTimeoutSeconds = positiveOrDefault(c.getInt("ai.connect-timeout-seconds", 20), 20);
+        this.requestTimeoutSeconds = positiveOrDefault(c.getInt("ai.request-timeout-seconds", 60), 60);
         this.maxRetriesPerKey = Math.max(0, c.getInt("ai.max-retries-per-key", 2));
 
         this.functionCallingEnabled = c.getBoolean("ai.function-calling.enabled", false);
