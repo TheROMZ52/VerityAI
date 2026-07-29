@@ -1,5 +1,5 @@
 name: VerityAI
-version: '2.0.0'
+version: '2.1.0'
 main: com.verityai.plugin.VerityAI
 api-version: '1.21'
 author: YourName
@@ -53,6 +53,9 @@ permissions:
     default: true
   verity.feedback:
     description: Allows recording feedback/corrections for Verity (/verity feedback).
+    default: op
+  verity.economy.give:
+    description: Allows this player to have Verity give in-game currency (Vault economy) to another player when asked.
     default: op
   # Example permission-tier nodes for permissions.tiers in config.yml — grant
   # these to whichever groups/players you want a different model or limits.

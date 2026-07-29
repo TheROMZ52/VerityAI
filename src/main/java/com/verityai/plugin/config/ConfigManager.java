@@ -108,6 +108,11 @@ public class ConfigManager {
     private boolean essentialsXEnabled;
     private String mapWebUrl;
 
+    // economy.* (only meaningful when integrations.vault is on and Vault is actually hooked)
+    private boolean economyEnabled;
+    private String economyGivePermission;
+    private double economyMaxGiveAmount;
+
     // commands.* (Verity executing real game commands when a player asks)
     private boolean commandsEnabled;
     private String commandRunAs;
@@ -235,6 +240,10 @@ public class ConfigManager {
         this.luckPermsEnabled = c.getBoolean("integrations.luckperms", true);
         this.essentialsXEnabled = c.getBoolean("integrations.essentialsx", true);
         this.mapWebUrl = c.getString("integrations.map-web-url", "");
+
+        this.economyEnabled = c.getBoolean("economy.enabled", false);
+        this.economyGivePermission = c.getString("economy.give-permission", "verity.economy.give");
+        this.economyMaxGiveAmount = Math.max(0, c.getDouble("economy.max-give-amount", 100.0));
 
         this.commandsEnabled = c.getBoolean("commands.enabled", false);
         this.commandRunAs = c.getString("commands.run-as", "player");
@@ -429,6 +438,10 @@ public class ConfigManager {
     public boolean isVaultIntegrationEnabled() { return vaultEnabled; }
     public boolean isLuckPermsIntegrationEnabled() { return luckPermsEnabled; }
     public boolean isEssentialsXIntegrationEnabled() { return essentialsXEnabled; }
+
+    public boolean isEconomyEnabled() { return economyEnabled; }
+    public String getEconomyGivePermission() { return economyGivePermission; }
+    public double getEconomyMaxGiveAmount() { return economyMaxGiveAmount; }
 
     public boolean isDebugEnabled() { return debugEnabled; }
     public void setDebugEnabled(boolean value) { this.debugEnabled = value; }

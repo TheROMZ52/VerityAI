@@ -73,6 +73,43 @@ public class FunctionCallService {
                     + "(interest, friend, project, playstyle, or goal) for future conversations.", params));
         }
 
+        if (plugin.getConfigManager().isEconomyEnabled() && plugin.getHookManager().isVaultHooked()) {
+            tools.add(tool("get_balance", "Get the asking player's own current in-game currency balance. "
+                    + "Use this whenever a player asks how much money they have.", emptyParams()));
+
+            if (player.hasPermission(plugin.getConfigManager().getEconomyGivePermission())) {
+                JsonObject params = new JsonObject();
+                JsonObject props = new JsonObject();
+
+                JsonObject targetProp = new JsonObject();
+                targetProp.addProperty("type", "string");
+                targetProp.addProperty("description", "Exact username of the player to give currency to.");
+                props.add("target", targetProp);
+
+                JsonObject amountProp = new JsonObject();
+                amountProp.addProperty("type", "number");
+                amountProp.addProperty("description", "How much currency to give. Must be a positive number, capped at "
+                        + plugin.getConfigManager().getEconomyMaxGiveAmount() + ".");
+                props.add("amount", amountProp);
+
+                JsonObject reasonProp = new JsonObject();
+                reasonProp.addProperty("type", "string");
+                reasonProp.addProperty("description", "Short reason for the reward, for the log/response message.");
+                props.add("reason", reasonProp);
+
+                params.addProperty("type", "object");
+                params.add("properties", props);
+                JsonArray required = new JsonArray();
+                required.add("target");
+                required.add("amount");
+                params.add("required", required);
+
+                tools.add(tool("give_currency", "Give another player some in-game currency as a reward. Only use "
+                        + "this when the asking player has clearly and explicitly requested it right now, and only for "
+                        + "a player they're actually allowed to reward — this is restricted to trusted/admin players.", params));
+            }
+        }
+
         if (plugin.getConfigManager().isCommandsEnabled()) {
             var cfg = plugin.getConfigManager();
             boolean isOwner = cfg.isOwner(player.getName());
@@ -120,6 +157,8 @@ public class FunctionCallService {
             case "get_craftable_items" -> getCraftableItems(player);
             case "remember_fact" -> rememberFact(player, args);
             case "run_command" -> runCommand(player, args);
+            case "get_balance" -> getBalance(player);
+            case "give_currency" -> giveCurrency(player, args);
             default -> "Unknown function: " + functionName;
         };
     }
@@ -290,6 +329,52 @@ public class FunctionCallService {
         String category = args.has("category") ? args.get("category").getAsString() : "general";
         plugin.getLongTermMemoryStore().addCategorizedFact(player.getUniqueId(), category, fact);
         return "Remembered (" + category + ").";
+    }
+
+    private String getBalance(Player player) {
+        if (!plugin.getConfigManager().isEconomyEnabled()) return "Economy features are disabled.";
+        var balance = plugin.getHookManager().getBalance(player);
+        if (balance.isEmpty()) return "Couldn't read balance — economy plugin unavailable.";
+        return String.format(Locale.ROOT, "%.2f %s", balance.get(), plugin.getHookManager().getCurrencyNamePlural());
+    }
+
+    private String giveCurrency(Player player, JsonObject args) {
+        var cfg = plugin.getConfigManager();
+
+        // Re-check everything here too — never trust that the model only calls
+        // this because we included it in the tool schema (schema gating is just
+        // to keep unauthorized players from being offered the option at all).
+        if (!cfg.isEconomyEnabled()) return "Economy features are disabled.";
+        if (!plugin.getHookManager().isVaultHooked()) return "No economy plugin is hooked.";
+        if (!player.hasPermission(cfg.getEconomyGivePermission())) {
+            return "You don't have permission to give currency.";
+        }
+
+        if (!args.has("target") || args.get("target").getAsString().isBlank()) return "No target player given.";
+        if (!args.has("amount")) return "No amount given.";
+
+        String targetName = args.get("target").getAsString().trim();
+        Player target = org.bukkit.Bukkit.getPlayerExact(targetName);
+        if (target == null) return "Player \"" + targetName + "\" isn't online.";
+
+        double amount;
+        try {
+            amount = args.get("amount").getAsDouble();
+        } catch (Exception e) {
+            return "Invalid amount.";
+        }
+
+        double cap = cfg.getEconomyMaxGiveAmount();
+        if (amount <= 0) return "Amount must be positive.";
+        if (amount > cap) amount = cap; // silently clamp rather than fail, so a rounding-up ask still goes through capped
+
+        boolean ok = plugin.getHookManager().giveBalance(target, amount);
+        if (!ok) return "Giving currency failed.";
+
+        String reason = args.has("reason") ? args.get("reason").getAsString() : null;
+        String currency = plugin.getHookManager().getCurrencyNamePlural();
+        return String.format(Locale.ROOT, "Gave %.2f %s to %s%s.", amount, currency, target.getName(),
+                (reason == null || reason.isBlank()) ? "" : " (" + reason + ")");
     }
 
     private String runCommand(Player player, JsonObject args) {

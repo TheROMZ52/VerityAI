@@ -132,6 +132,9 @@ public class VerityAI extends JavaPlugin {
         if (taskService != null) {
             taskService.flushDirty();
         }
+        if (hookManager != null) {
+            hookManager.unregisterPlaceholders();
+        }
         getServer().getServicesManager().unregisterAll(this);
         getLogger().info("VerityAI disabled.");
     }

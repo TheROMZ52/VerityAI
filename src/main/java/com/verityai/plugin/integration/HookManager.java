@@ -25,6 +25,7 @@ public class HookManager {
     private net.milkbowl.vault.economy.Economy economy;
     private net.luckperms.api.LuckPerms luckPerms;
     private com.earth2me.essentials.Essentials essentials;
+    private VerityPlaceholderExpansion placeholderExpansion;
 
     public HookManager(VerityAI plugin) {
         this.plugin = plugin;
@@ -41,9 +42,25 @@ public class HookManager {
         if (!plugin.getConfigManager().isPlaceholderApiIntegrationEnabled()) return;
         try {
             placeholderApiHooked = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
-            if (placeholderApiHooked) plugin.getLogger().info("VerityAI: hooked into PlaceholderAPI.");
+            if (placeholderApiHooked) {
+                placeholderExpansion = new VerityPlaceholderExpansion(plugin);
+                placeholderExpansion.register();
+                plugin.getLogger().info("VerityAI: hooked into PlaceholderAPI and registered %verityai_*% placeholders.");
+            }
         } catch (Throwable t) {
             placeholderApiHooked = false;
+            plugin.getLogger().warning("VerityAI: failed to register PlaceholderAPI expansion: " + t.getMessage());
+        }
+    }
+
+    /** Called from VerityAI#onDisable so the expansion doesn't linger if only VerityAI is reloaded. */
+    public void unregisterPlaceholders() {
+        if (placeholderExpansion != null) {
+            try {
+                placeholderExpansion.unregister();
+            } catch (Throwable ignored) {
+                // best-effort; PlaceholderAPI also auto-cleans on plugin disable
+            }
         }
     }
 
@@ -106,6 +123,27 @@ public class HookManager {
             return Optional.of(economy.getBalance(player));
         } catch (Throwable t) {
             return Optional.empty();
+        }
+    }
+
+    /** Deposits money into an online player's balance. Returns false if Vault isn't hooked, the amount is invalid, or the deposit fails. */
+    public boolean giveBalance(Player target, double amount) {
+        if (!vaultHooked || economy == null || target == null || amount <= 0) return false;
+        try {
+            return economy.depositPlayer(target, amount).transactionSuccess();
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** The currency name Vault reports (e.g. "Dollars"), for nicer function-call responses. Falls back to "coins". */
+    public String getCurrencyNamePlural() {
+        if (!vaultHooked || economy == null) return "coins";
+        try {
+            String name = economy.currencyNamePlural();
+            return (name == null || name.isBlank()) ? "coins" : name;
+        } catch (Throwable t) {
+            return "coins";
         }
     }
 

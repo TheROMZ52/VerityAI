@@ -210,6 +210,22 @@ integrations:
   # /verity map. Leave blank to only show the in-chat mini-map.
   map-web-url: ""
 
+# Vault economy features for Verity. Requires integrations.vault: true above
+# AND a Vault-compatible economy plugin (EssentialsX Economy, CMI, etc.)
+# actually installed. Disabled by default — turn on deliberately.
+#
+# When enabled, Verity can always tell a player their OWN balance
+# (get_balance). Giving currency to someone else (give_currency) additionally
+# requires the asking player to hold "economy.give-permission" below — a
+# regular player asking Verity to pay another player money will simply be
+# refused, exactly like Bukkit permissions already work for run_command.
+economy:
+  enabled: false
+  give-permission: "verity.economy.give"
+  # Hard safety cap per single give_currency call, regardless of what the
+  # player asks for — prevents a jailbreak attempt from draining the bank.
+  max-give-amount: 100.0
+
 # Lets Verity execute real in-game commands when a player explicitly asks for
 # one (e.g. "@verity can you send me to spawn?"). Disabled by default.
 #
