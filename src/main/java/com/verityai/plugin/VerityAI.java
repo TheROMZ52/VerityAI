@@ -88,6 +88,7 @@ public class VerityAI extends JavaPlugin {
         var command = getCommand("verity");
         if (command != null) {
             command.setExecutor(executor);
+            command.setTabCompleter(executor);
         }
 
         getServer().getServicesManager().register(VerityAIApi.class, new VerityAIApiImpl(this), this, ServicePriority.Normal);

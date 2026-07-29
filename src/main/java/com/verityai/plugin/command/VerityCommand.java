@@ -8,13 +8,26 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
-public class VerityCommand implements CommandExecutor {
+public class VerityCommand implements CommandExecutor, TabCompleter {
+
+    /** Keep this in sync with the subcommands handled in {@link #onCommand}. */
+    private static final List<String> SUBCOMMANDS = List.of(
+            "reload", "clear", "info", "debug", "toggle", "chat", "personality",
+            "owner", "map", "stats", "model", "task", "quest", "tutorial", "feedback"
+    );
+
+    private static final List<String> TASK_SUBCOMMANDS = List.of("add", "remove", "list");
 
     private final VerityAI plugin;
 
@@ -51,6 +64,46 @@ public class VerityCommand implements CommandExecutor {
                 yield true;
             }
         };
+    }
+
+    @Override
+    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
+                                                  @NotNull String label, String[] args) {
+        // Bukkit falls back to suggesting online player names for any command that
+        // doesn't register its own TabCompleter — which is why "/verity <tab>" was
+        // showing player names instead of the subcommand list. Registering this
+        // (see VerityAI#onEnable) fixes that; the logic below provides real,
+        // context-aware suggestions instead.
+        if (args.length == 1) {
+            return filterStartingWith(SUBCOMMANDS, args[0]);
+        }
+
+        if (args.length == 2) {
+            return switch (args[0].toLowerCase(Locale.ROOT)) {
+                case "clear", "owner" -> filterStartingWith(onlinePlayerNames(), args[1]);
+                case "task" -> filterStartingWith(TASK_SUBCOMMANDS, args[1]);
+                case "toggle" -> filterStartingWith(List.of("on", "off"), args[1]);
+                case "feedback" -> filterStartingWith(List.of("good", "bad"), args[1]);
+                default -> List.of();
+            };
+        }
+
+        return List.of();
+    }
+
+    private List<String> onlinePlayerNames() {
+        return Bukkit.getOnlinePlayers().stream().map(Player::getName).collect(Collectors.toList());
+    }
+
+    private List<String> filterStartingWith(List<String> options, String prefix) {
+        String lower = prefix.toLowerCase(Locale.ROOT);
+        List<String> result = new ArrayList<>();
+        for (String option : options) {
+            if (option.toLowerCase(Locale.ROOT).startsWith(lower)) {
+                result.add(option);
+            }
+        }
+        return result;
     }
 
     private boolean handleReload(CommandSender sender) {
