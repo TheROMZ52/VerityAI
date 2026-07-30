@@ -6,6 +6,7 @@ import org.bukkit.entity.Player;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -29,6 +30,15 @@ public class AiCommandExecutor {
 
     // Matches [[CMD: <command>]] (case-insensitive), command text without the leading slash.
     private static final Pattern CMD_TAG = Pattern.compile("\\[\\[CMD:\\s*(.+?)\\s*]]", Pattern.CASE_INSENSITIVE);
+
+    // Always blocked, even when commands.whitelist-mode is "all" — catastrophic even for a
+    // player who technically has permission for them (server stop/restart, granting/revoking
+    // op, banning/whitelisting people). The whole point of an explicit ask-Verity-to-run-it
+    // flow is that a player didn't necessarily mean to trigger these just by chatting.
+    private static final Set<String> ALWAYS_BLOCKED = Set.of(
+            "op", "deop", "stop", "restart", "ban", "ban-ip", "banip", "pardon", "pardon-ip",
+            "whitelist", "save-off", "save-on", "plugman", "reload", "kill"
+    );
 
     private final VerityAI plugin;
 
@@ -89,10 +99,15 @@ public class AiCommandExecutor {
             return false;
         }
         String base = command.split("\\s+", 2)[0].toLowerCase(Locale.ROOT);
+        if (ALWAYS_BLOCKED.contains(base)) {
+            plugin.getDebugLogger().debug("VerityAI: refused always-blocked command from "
+                    + player.getName() + ": /" + command);
+            return false;
+        }
 
         boolean isOwner = cfg.isOwner(player.getName());
         boolean inOwnerConsoleList = isOwner && containsBase(cfg.getOwnerCommandWhitelist(), base);
-        boolean inPlayerList = containsBase(cfg.getCommandWhitelist(), base);
+        boolean inPlayerList = cfg.isCommandAllowAll() || containsBase(cfg.getCommandWhitelist(), base);
 
         if (inOwnerConsoleList) {
             // Elevated: runs as console, but ONLY for the single configured owner and

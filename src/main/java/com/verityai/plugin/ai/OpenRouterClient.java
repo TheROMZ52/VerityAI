@@ -342,7 +342,11 @@ public class OpenRouterClient {
         JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
         JsonArray choices = json.getAsJsonArray("choices");
         if (choices == null || choices.isEmpty()) {
-            throw new RuntimeException("Empty choices in response.");
+            // OpenRouter's free-tier models occasionally return HTTP 200 with an empty
+            // choices array under load — usually resolves itself a moment later, so
+            // treat it like a transient failure (retry with backoff) rather than
+            // immediately burning through the remaining keys/models.
+            throw new TransientFailure(200, "Empty choices in response.");
         }
         JsonObject message = choices.get(0).getAsJsonObject().getAsJsonObject("message");
 

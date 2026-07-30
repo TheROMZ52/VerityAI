@@ -113,9 +113,13 @@ public class ConfigManager {
     private String economyGivePermission;
     private double economyMaxGiveAmount;
 
+    // quests.*
+    private int questAutoIntervalMinutes;
+
     // commands.* (Verity executing real game commands when a player asks)
     private boolean commandsEnabled;
     private String commandRunAs;
+    private boolean commandAllowAll;
     private List<String> commandWhitelist;
     private List<String> ownerCommandWhitelist;
 
@@ -143,7 +147,10 @@ public class ConfigManager {
         FileConfiguration c = plugin.getConfig();
 
         this.apiUrl = c.getString("ai.api-url", "https://openrouter.ai/api/v1/chat/completions");
-        this.apiKeys = c.getStringList("ai.api-keys");
+        this.apiKeys = c.getStringList("ai.api-keys").stream()
+                .map(String::trim)
+                .filter(k -> !k.isEmpty() && !k.contains("YOUR_"))
+                .collect(java.util.stream.Collectors.toList());
         this.model = c.getString("ai.model", "nvidia/nemotron-3-ultra-550b-a55b:free");
         this.fallbackModels = c.getStringList("ai.fallback-models");
         this.maxTokens = c.getInt("ai.max-tokens", 500);
@@ -245,8 +252,12 @@ public class ConfigManager {
         this.economyGivePermission = c.getString("economy.give-permission", "verity.economy.give");
         this.economyMaxGiveAmount = Math.max(0, c.getDouble("economy.max-give-amount", 100.0));
 
+        // 0 (or negative) disables automatic quests entirely.
+        this.questAutoIntervalMinutes = c.getInt("quests.auto-interval-minutes", 30);
+
         this.commandsEnabled = c.getBoolean("commands.enabled", false);
         this.commandRunAs = c.getString("commands.run-as", "player");
+        this.commandAllowAll = "all".equalsIgnoreCase(c.getString("commands.whitelist-mode", "list"));
         this.commandWhitelist = c.getStringList("commands.whitelist");
         this.ownerCommandWhitelist = c.getStringList("commands.owner-only-console-whitelist");
 
@@ -267,7 +278,7 @@ public class ConfigManager {
             permissionTiers.add(new PermissionTier(permission, tierModel, tierCooldown, tierMaxPerMinute, tierMaxTokens));
         }
 
-        if (apiKeys == null || apiKeys.isEmpty() || apiKeys.get(0).contains("YOUR_")) {
+        if (apiKeys == null || apiKeys.isEmpty()) {
             plugin.getLogger().warning("VerityAI: no valid OpenRouter API key set in config.yml!");
         }
     }
@@ -394,6 +405,7 @@ public class ConfigManager {
 
     public boolean isCommandsEnabled() { return commandsEnabled; }
     public String getCommandRunAs() { return commandRunAs; }
+    public boolean isCommandAllowAll() { return commandAllowAll; }
     public List<String> getCommandWhitelist() { return commandWhitelist; }
     public List<String> getOwnerCommandWhitelist() { return ownerCommandWhitelist; }
 
@@ -442,6 +454,15 @@ public class ConfigManager {
     public boolean isEconomyEnabled() { return economyEnabled; }
     public String getEconomyGivePermission() { return economyGivePermission; }
     public double getEconomyMaxGiveAmount() { return economyMaxGiveAmount; }
+
+    public int getQuestAutoIntervalMinutes() { return questAutoIntervalMinutes; }
+
+    /** Sets and persists the automatic-quest interval to config.yml (used by /verity quest interval). */
+    public void setQuestAutoIntervalMinutes(int minutes) {
+        this.questAutoIntervalMinutes = minutes;
+        plugin.getConfig().set("quests.auto-interval-minutes", minutes);
+        plugin.saveConfig();
+    }
 
     public boolean isDebugEnabled() { return debugEnabled; }
     public void setDebugEnabled(boolean value) { this.debugEnabled = value; }

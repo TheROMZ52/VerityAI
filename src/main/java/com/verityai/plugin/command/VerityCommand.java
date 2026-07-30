@@ -56,7 +56,7 @@ public class VerityCommand implements CommandExecutor, TabCompleter {
             case "stats" -> handleStats(sender);
             case "model" -> handleModel(sender, args);
             case "task" -> handleTask(sender, args);
-            case "quest" -> handleQuest(sender);
+            case "quest" -> handleQuest(sender, args);
             case "tutorial" -> handleTutorial(sender, args);
             case "feedback" -> handleFeedback(sender, args);
             default -> {
@@ -82,6 +82,7 @@ public class VerityCommand implements CommandExecutor, TabCompleter {
             return switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "clear", "owner" -> filterStartingWith(onlinePlayerNames(), args[1]);
                 case "task" -> filterStartingWith(TASK_SUBCOMMANDS, args[1]);
+                case "quest" -> filterStartingWith(List.of("interval"), args[1]);
                 case "toggle" -> filterStartingWith(List.of("on", "off"), args[1]);
                 case "feedback" -> filterStartingWith(List.of("good", "bad"), args[1]);
                 default -> List.of();
@@ -380,7 +381,10 @@ public class VerityCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    private boolean handleQuest(CommandSender sender) {
+    private boolean handleQuest(CommandSender sender, String[] args) {
+        if (args.length >= 2 && args[1].equalsIgnoreCase("interval")) {
+            return handleQuestInterval(sender, args);
+        }
         if (!(sender instanceof Player player)) {
             sender.sendMessage(Component.text("Only players can request a quest.", NamedTextColor.RED));
             return true;
@@ -391,6 +395,41 @@ public class VerityCommand implements CommandExecutor, TabCompleter {
         }
         player.sendMessage(Component.text("Thinking of a quest for you...", NamedTextColor.GRAY));
         plugin.getQuestService().generate(player);
+        return true;
+    }
+
+    private boolean handleQuestInterval(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("verity.quest.interval")) {
+            deny(sender);
+            return true;
+        }
+        var cfg = plugin.getConfigManager();
+        if (args.length < 3) {
+            int current = cfg.getQuestAutoIntervalMinutes();
+            sender.sendMessage(Component.text(current <= 0
+                    ? "Automatic quests are currently disabled."
+                    : "Verity currently sends everyone online a new quest every " + current + " minute(s).",
+                    NamedTextColor.AQUA));
+            sender.sendMessage(Component.text("Usage: /verity quest interval <minutes> (0 disables it)", NamedTextColor.GRAY));
+            return true;
+        }
+        int minutes;
+        try {
+            minutes = Integer.parseInt(args[2]);
+        } catch (NumberFormatException e) {
+            sender.sendMessage(Component.text("That's not a valid number of minutes.", NamedTextColor.RED));
+            return true;
+        }
+        if (minutes < 0) {
+            sender.sendMessage(Component.text("Minutes can't be negative.", NamedTextColor.RED));
+            return true;
+        }
+        cfg.setQuestAutoIntervalMinutes(minutes);
+        plugin.getQuestService().restartAutoQuests();
+        sender.sendMessage(Component.text(minutes == 0
+                ? "Automatic quests disabled."
+                : "Verity will now send everyone online a new quest every " + minutes + " minute(s).",
+                NamedTextColor.GREEN));
         return true;
     }
 

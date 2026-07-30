@@ -115,15 +115,19 @@ public class FunctionCallService {
             boolean isOwner = cfg.isOwner(player.getName());
             var whitelist = cfg.getCommandWhitelist();
             var ownerWhitelist = isOwner ? cfg.getOwnerCommandWhitelist() : java.util.List.<String>of();
-            if ((whitelist != null && !whitelist.isEmpty()) || !ownerWhitelist.isEmpty()) {
+            boolean hasAnyAllowedCommand = cfg.isCommandAllowAll()
+                    || (whitelist != null && !whitelist.isEmpty()) || !ownerWhitelist.isEmpty();
+            if (hasAnyAllowedCommand) {
                 JsonObject params = new JsonObject();
                 JsonObject props = new JsonObject();
                 JsonObject cmdProp = new JsonObject();
                 cmdProp.addProperty("type", "string");
-                StringBuilder desc = new StringBuilder("The exact command to run, without the leading slash. Allowed: ");
-                if (whitelist != null) desc.append(String.join(", ", whitelist));
-                if (!ownerWhitelist.isEmpty()) desc.append(" | owner-only: ").append(String.join(", ", ownerWhitelist));
-                cmdProp.addProperty("description", desc.toString());
+                String desc = cfg.isCommandAllowAll()
+                        ? "The exact command to run, without the leading slash. Any command the player themselves "
+                            + "has permission for is allowed (a handful of server-critical commands like op/stop/ban "
+                            + "are always off-limits)."
+                        : buildWhitelistDescription(whitelist, ownerWhitelist);
+                cmdProp.addProperty("description", desc);
                 props.add("command", cmdProp);
                 params.addProperty("type", "object");
                 params.add("properties", props);
@@ -132,11 +136,18 @@ public class FunctionCallService {
                 params.add("required", required);
                 tools.add(tool("run_command", "Run an in-game command for the player. Only use this if the "
                         + "player clearly and explicitly asked you to perform that action right now, and only with "
-                        + "a command from the allowed list.", params));
+                        + "a command the player is actually allowed to run.", params));
             }
         }
 
         return tools;
+    }
+
+    private String buildWhitelistDescription(java.util.List<String> whitelist, java.util.List<String> ownerWhitelist) {
+        StringBuilder desc = new StringBuilder("The exact command to run, without the leading slash. Allowed: ");
+        if (whitelist != null) desc.append(String.join(", ", whitelist));
+        if (!ownerWhitelist.isEmpty()) desc.append(" | owner-only: ").append(String.join(", ", ownerWhitelist));
+        return desc.toString();
     }
 
     /** Executes a named function for a given player and returns a short text/JSON result for the model. */

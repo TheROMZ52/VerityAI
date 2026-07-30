@@ -17,7 +17,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
 /**
@@ -36,7 +35,6 @@ public class TaskService {
     private final File folder;
     private final Map<UUID, List<Reminder>> cache = new ConcurrentHashMap<>();
     private final Set<UUID> dirty = ConcurrentHashMap.newKeySet();
-    private final AtomicInteger idCounter = new AtomicInteger(1);
 
     public TaskService(VerityAI plugin) {
         this.plugin = plugin;
@@ -86,7 +84,9 @@ public class TaskService {
         if (reminders.size() >= maxPerPlayer()) {
             return null;
         }
-        String id = "r" + idCounter.getAndIncrement();
+        // A UUID-derived id (not a per-JVM counter) so ids never collide with
+        // ones already saved to disk from before the last restart.
+        String id = "r" + UUID.randomUUID().toString().substring(0, 6);
         reminders.add(new Reminder(id, hour, minute, message, ""));
         dirty.add(uuid);
         return id;

@@ -25,9 +25,34 @@ public class QuestService {
 
     private final VerityAI plugin;
     private final Map<UUID, String> currentQuest = new ConcurrentHashMap<>();
+    private org.bukkit.scheduler.BukkitTask autoTask;
 
     public QuestService(VerityAI plugin) {
         this.plugin = plugin;
+    }
+
+    /**
+     * (Re)starts the automatic-quest timer using the currently configured
+     * interval. Safe to call repeatedly (e.g. from /verity quest interval)
+     * — always cancels any previous timer first. An interval of 0 or less
+     * disables automatic quests.
+     */
+    public void restartAutoQuests() {
+        if (autoTask != null) {
+            autoTask.cancel();
+            autoTask = null;
+        }
+        int minutes = plugin.getConfigManager().getQuestAutoIntervalMinutes();
+        if (minutes <= 0) return;
+
+        long ticks = minutes * 60L * 20L;
+        autoTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                if (player.hasPermission("verity.quest")) {
+                    generate(player);
+                }
+            }
+        }, ticks, ticks);
     }
 
     public String getCurrentQuest(UUID uuid) {

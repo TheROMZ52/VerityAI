@@ -1,5 +1,5 @@
 name: VerityAI
-version: '2.1.0'
+version: '4.0.0'
 main: com.verityai.plugin.VerityAI
 api-version: '1.21'
 author: YourName
