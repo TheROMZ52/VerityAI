@@ -74,6 +74,7 @@ public class VerityAI extends JavaPlugin {
         this.aiHandler = new AIHandler(this);
         this.taskService = new TaskService(this);
         this.questService = new QuestService(this);
+        this.questService.restartAutoQuests();
         this.lessonsService = new LessonsService(this);
         this.chatActivityLogger = new ChatActivityLogger(this);
 

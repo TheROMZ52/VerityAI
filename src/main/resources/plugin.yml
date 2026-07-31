@@ -51,6 +51,9 @@ permissions:
   verity.quest:
     description: Allows requesting a generated quest (/verity quest).
     default: true
+  verity.quest.interval:
+    description: Allows changing how often Verity automatically sends everyone a new quest (/verity quest interval).
+    default: op
   verity.feedback:
     description: Allows recording feedback/corrections for Verity (/verity feedback).
     default: op

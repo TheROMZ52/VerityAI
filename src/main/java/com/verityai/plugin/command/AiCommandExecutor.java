@@ -105,7 +105,7 @@ public class AiCommandExecutor {
             return false;
         }
 
-        boolean isOwner = cfg.isOwner(player.getName());
+        boolean isOwner = cfg.isOwner(player);
         boolean inOwnerConsoleList = isOwner && containsBase(cfg.getOwnerCommandWhitelist(), base);
         boolean inPlayerList = cfg.isCommandAllowAll() || containsBase(cfg.getCommandWhitelist(), base);
 

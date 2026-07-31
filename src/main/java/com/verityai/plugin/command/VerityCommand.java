@@ -252,8 +252,17 @@ public class VerityCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         String name = args[1];
-        cfg.setOwnerName(name);
-        sender.sendMessage(Component.text("Server owner set to: " + name, NamedTextColor.GREEN));
+        Player target = Bukkit.getPlayerExact(name);
+        if (target == null) {
+            // Require the target to be online so we can record their real UUID —
+            // matching by name alone would be spoofable, especially on an
+            // offline-mode server where usernames aren't authenticated at all.
+            sender.sendMessage(Component.text("That player needs to be online right now to be set as owner "
+                    + "(so Verity can record their real account, not just a name).", NamedTextColor.RED));
+            return true;
+        }
+        cfg.setOwner(target);
+        sender.sendMessage(Component.text("Server owner set to: " + target.getName(), NamedTextColor.GREEN));
         return true;
     }
 

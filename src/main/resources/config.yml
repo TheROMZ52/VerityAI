@@ -229,19 +229,28 @@ economy:
 # Lets Verity execute real in-game commands when a player explicitly asks for
 # one (e.g. "@verity can you send me to spawn?"). Disabled by default.
 #
-# SAFETY: commands in "whitelist" are executed AS THE ASKING PLAYER, so
-# Bukkit's normal permission system still applies in full — Verity can never
-# let a player do anything they couldn't already do by typing the command
-# themselves. Only "owner-only-console-whitelist" runs with full console
-# privileges, and only for the single player named in server-info.owner —
-# leave it empty unless you understand the risk.
+# SAFETY: commands run AS THE ASKING PLAYER, so Bukkit's normal permission
+# system still applies in full — Verity can never let a player do anything
+# they couldn't already do by typing the command themselves. A handful of
+# server-critical commands (op, deop, stop, restart, ban, whitelist, ...)
+# are ALWAYS blocked regardless of the settings below, since a player being
+# able to type them isn't the same as meaning to trigger them mid-chat.
 commands:
   enabled: false
+  # "list"  — only commands in whitelist below (plus owner-only-console-whitelist
+  #           for the configured owner) are allowed.
+  # "all"   — any command the asking player has permission for is allowed
+  #           (still subject to the always-blocked list above).
+  whitelist-mode: "list"
   whitelist: []
     # - "spawn"
     # - "home"
     # - "kit"
     # - "warp"
+  # Only ever runs with full CONSOLE privileges, and only for the single
+  # player named in server-info.owner. Leave empty unless you understand
+  # the risk — this is the one path NOT limited to the asking player's own
+  # permissions, regardless of whitelist-mode above.
   owner-only-console-whitelist: []
 
 # Personal reminders players can set with /verity task add <HH:mm> <message>
@@ -250,6 +259,12 @@ commands:
 # mail/queue here, just a lightweight in-game nudge.
 tasks:
   max-per-player: 10
+
+# Automatically sends everyone currently online a fresh quest suggestion on
+# a timer, on top of the on-demand /verity quest. 0 disables it. Change
+# anytime in-game with /verity quest interval <minutes> (persists here too).
+quests:
+  auto-interval-minutes: 30
 
 # Verity reacting to notable game moments with a short, config-editable
 # message — NOT a live AI call (keeps these instant and free). Leave any

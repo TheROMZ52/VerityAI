@@ -58,6 +58,7 @@ public class ConfigManager {
     private String serverGamemodes;
     private String serverVersion;
     private String ownerName;
+    private String ownerUuid;
 
     // chat.*
     private String prefix;
@@ -199,6 +200,7 @@ public class ConfigManager {
         this.serverGamemodes = c.getString("server-info.gamemodes", "");
         this.serverVersion = c.getString("server-info.version", "1.21.8");
         this.ownerName = c.getString("server-info.owner", "");
+        this.ownerUuid = c.getString("server-info.owner-uuid", "");
 
         this.prefix = c.getString("chat.prefix", "&b[Verity]&r ");
         this.trigger = c.getString("chat.trigger", "@verity");
@@ -390,14 +392,34 @@ public class ConfigManager {
 
     public String getOwnerName() { return ownerName == null ? "" : ownerName; }
 
-    /** Sets and persists the server owner's name to config.yml (used by /verity owner). */
-    public void setOwnerName(String name) {
-        this.ownerName = name == null ? "" : name;
+    /**
+     * Sets and persists the server owner to config.yml (used by /verity owner).
+     * Stores the player's UUID alongside their name so ownership can't be
+     * spoofed just by picking the same username — this matters a lot on
+     * offline-mode servers, where usernames aren't authenticated at all.
+     */
+    public void setOwner(Player player) {
+        this.ownerName = player.getName();
+        this.ownerUuid = player.getUniqueId().toString();
         plugin.getConfig().set("server-info.owner", this.ownerName);
+        plugin.getConfig().set("server-info.owner-uuid", this.ownerUuid);
         plugin.saveConfig();
     }
 
-    public boolean isOwner(String playerName) {
+    public boolean isOwner(Player player) {
+        if (player == null) return false;
+        if (ownerUuid != null && !ownerUuid.isBlank()) {
+            // Authoritative check: UUID can't be impersonated by picking a name,
+            // even on an offline-mode server.
+            return ownerUuid.equalsIgnoreCase(player.getUniqueId().toString());
+        }
+        // No UUID on record yet (e.g. owner was set via the old name-only path,
+        // or config.yml was hand-edited) — fall back to name matching. Run
+        // /verity owner <yourself> once while online to upgrade to the safe check.
+        return isOwnerName(player.getName());
+    }
+
+    private boolean isOwnerName(String playerName) {
         return playerName != null && !getOwnerName().isBlank() && getOwnerName().equalsIgnoreCase(playerName);
     }
 
