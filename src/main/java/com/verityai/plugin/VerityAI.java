@@ -23,6 +23,8 @@ import com.verityai.plugin.stats.StatsService;
 import com.verityai.plugin.tasks.TaskService;
 import com.verityai.plugin.util.DebugLogger;
 import com.verityai.plugin.util.RateLimiter;
+import org.bstats.bukkit.Metrics;
+import org.bstats.charts.SimplePie;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -36,6 +38,9 @@ import org.bukkit.plugin.java.JavaPlugin;
  * {@code com.verityai.api.events.*} — see that package's Javadoc.
  */
 public class VerityAI extends JavaPlugin {
+
+    // https://bstats.org/plugin/bukkit/VerityAI/33005
+    private static final int BSTATS_PLUGIN_ID = 33005;
 
     private ConfigManager configManager;
     private DebugLogger debugLogger;
@@ -96,8 +101,23 @@ public class VerityAI extends JavaPlugin {
 
         scheduleMaintenanceTasks();
         historyLogger.cleanupOldLogs();
+        setupMetrics();
 
         getLogger().info("VerityAI enabled - Verity is ready to help players!");
+    }
+
+    /**
+     * Anonymous usage statistics via bStats (server count, versions, etc. are
+     * collected automatically). Respects the server's global bStats opt-out
+     * (plugins/bStats/config.yml) automatically; no separate toggle needed.
+     */
+    private void setupMetrics() {
+        Metrics metrics = new Metrics(this, BSTATS_PLUGIN_ID);
+        metrics.addCustomChart(new SimplePie("ai_model", () -> configManager.getModel()));
+        metrics.addCustomChart(new SimplePie("function_calling_enabled",
+                () -> String.valueOf(configManager.isFunctionCallingEnabled())));
+        metrics.addCustomChart(new SimplePie("long_term_memory_enabled",
+                () -> String.valueOf(configManager.isLongTermEnabled())));
     }
 
     /**

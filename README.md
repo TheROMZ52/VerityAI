@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://cdn.modrinth.com/data/cached_images/a20fc1f9c30851b62c2264a9c179e817654f2652.jpeg" width="140" alt="VerityAI logo"/>
+<img src="./file_000000003ef881f49cd9ce13cb29a95c_compressed.jpg" width="140" alt="VerityAI logo"/>
 
 # VerityAI
 
@@ -12,119 +12,70 @@
 
 </div>
 
-
-
-VerityAI allows players to chat directly with an AI assistant inside Minecraft with support for multiple AI models, conversation memory, commands, and server integrations.
+Talk to Verity right in chat — ask questions, get real-time help with builds, quests, reminders, and more, all backed by a real AI model you choose yourself.
 
 ## ✨ Features
 
-- 💬 Chat with AI directly in-game
-- 🧠 Conversation memory system
-- 🔄 Automatic API key fallback
-- 🎭 Multiple personality presets
-- 📊 Usage statistics
-- 🗺️ In-game mini-map support
-- 📝 Personal reminders and tasks
-- 🎯 AI-generated quests
-- 📚 In-game tutorials and help
-- 💡 Player feedback and correction system
-- 🔌 Integration with popular server plugins
+- **Chat naturally** — trigger with `@verity <message>` or start hands-free conversation mode with `/verity chat`
+- **Live world awareness** — Verity answers using real data (coordinates, nearby biomes, weather, TPS, inventory) instead of guessing
+- **Long-term memory** — remembers facts about each player across sessions, with optional semantic (embedding-based) search
+- **Personalities** — switch between built-in presets (funny, formal, tutor, admin...) or write your own, even per-world
+- **Function calling** — lets supported AI models run real actions: check player status, run whitelisted commands, manage economy, remember facts
+- **Automatic quests** — Verity sends players fresh quest suggestions on a timer
+- **Personal reminders** — players can set their own daily in-game reminders
+- **Soft integrations** — Vault (economy), LuckPerms, EssentialsX, PlaceholderAPI — all optional, all auto-detected
+- **Multi-key & multi-model fallback** — configure several API keys and models; VerityAI automatically retries and falls back if one fails
 
-## 📥 Installation
+## 📦 Installation
 
-1. Download the latest **VerityAI.jar**
-2. Place the jar file into your server's:
+1. Download the latest `VerityAI.jar` from [Releases](../../releases) or [Modrinth](https://modrinth.com/plugin/verityai)
+2. Drop it into your Paper server's `plugins/` folder (Paper 1.21+)
+3. Start the server once to generate `plugins/VerityAI/config.yml`
+4. Get an API key from [OpenRouter](https://openrouter.ai/keys) and add it under `ai.api-keys` in `config.yml`
+5. Restart, or run `/verity reload`
 
-```text
-plugins/
+Full setup and configuration reference: see [config.yml](src/main/resources/config.yml) — every setting is documented inline.
+
+## 🔑 Getting an OpenRouter API key
+
+1. Sign up at [openrouter.ai](https://openrouter.ai)
+2. Go to [openrouter.ai/keys](https://openrouter.ai/keys) → **Create Key**
+3. Paste it into `config.yml`:
+   ```yaml
+   ai:
+     api-keys:
+       - "sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ```
+
+VerityAI ships with a free-tier model + fallback chain by default. OpenRouter's free catalog changes frequently — check [openrouter.ai/models?supported_parameters=tools](https://openrouter.ai/models?supported_parameters=tools) if you want to pick your own.
+
+## 🎮 Commands
+
+```
+/verity reload                          - Reload the configuration
+/verity clear [player]                  - Clear conversation memory
+/verity info                            - Show plugin info
+/verity toggle                          - Enable/disable Verity globally
+/verity personality [name]              - Change Verity's active personality
+/verity owner [player]                  - Set the server owner (must be online)
+/verity map                             - Show the in-chat mini-map
+/verity stats                           - Show usage stats
+/verity model [name]                    - View/switch the primary AI model
+/verity task <add|remove|list>          - Manage your personal reminders
+/verity quest [interval <minutes>]      - Request a quest / configure auto-quests
+/verity tutorial <topic>                - In-game help topics
+/verity feedback <good|bad> [correction]- Record feedback/corrections
 ```
 
-folder.
+## 🧩 Requirements
 
-3. Start or restart your Paper server.
-4. VerityAI will generate its default configuration:
+- Paper (or compatible forks) 1.21+
+- Java 21+
+- An OpenRouter API key
 
-```text
-plugins/VerityAI/config.yml
-```
+## 🤝 Soft Dependencies (all optional)
 
-5. Add your OpenRouter API key to the configuration file.
-6. Restart your server or use:
-
-```text
-/verity reload
-```
-
-## 🔑 Getting an OpenRouter API Key
-
-1. Go to OpenRouter and create an account or sign in.
-2. Open the **Keys** section.
-3. Click **Create Key**.
-4. Copy your generated API key.
-5. Add it to `config.yml`:
-
-```yml
-ai:
-  api-keys:
-    - "sk-or-v1-your-key-here"
-```
-
-You can add multiple API keys.
-
-VerityAI automatically switches to another key if the current key fails or reaches its rate limit.
-
-> Some OpenRouter models are free, while stronger models may require credits.
-
-## 📜 Commands
-
-| Command | Description |
-|---|---|
-| `/verity reload` | Reload configuration |
-| `/verity clear [player]` | Clear conversation memory |
-| `/verity info` | Show plugin information |
-| `/verity toggle` | Enable or disable Verity |
-| `/verity personality [name]` | Change AI personality preset |
-| `/verity owner [player]` | View or set server owner |
-| `/verity map` | Show in-chat mini-map |
-| `/verity stats` | Show usage statistics |
-| `/verity model [name]` | View or switch AI model |
-| `/verity task <add\|remove\|list>` | Manage personal reminders |
-| `/verity quest` | Generate a random quest |
-| `/verity tutorial <topic>` | Get in-game help |
-| `/verity feedback <good\|bad> [correction]` | Submit AI feedback |
-
-## ⚙️ Requirements
-
-- Paper (or compatible forks) **1.21+**
-- Java **21+**
-- OpenRouter API key
-
-## 🔌 Soft Dependencies
-
-VerityAI can integrate with these plugins if installed:
-
-- PlaceholderAPI
-- Vault
-- LuckPerms
-- Essentials
-
-All dependencies are optional. VerityAI works without them.
-
-## ⚙️ Configuration
-
-Main configuration file:
-
-```text
-plugins/VerityAI/config.yml
-```
-
-You can customize:
-
-- AI models
-- API keys
-- Personality presets
-- Plugin behavior
-- Server settings
+PlaceholderAPI · Vault · LuckPerms · Essentials
 
 ## 📊 Metrics
 
@@ -140,8 +91,3 @@ The finished jar is written to `target/VerityAI.jar`.
 ## 📄 License
 
 MIT
-## 🚀 Support
-
-If you find a bug or have a suggestion, please create an issue or contact the developer.
-
-Enjoy using **VerityAI**! 🤖

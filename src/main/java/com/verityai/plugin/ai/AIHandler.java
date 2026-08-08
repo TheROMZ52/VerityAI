@@ -137,37 +137,36 @@ public class AIHandler {
                 long duration = System.currentTimeMillis() - start;
 
                 // Plugin hook: let other plugins rewrite the final answer before it's shown/stored.
-String finalAnswer = answer;
+                String finalAnswer = answer;
 
-plugin.getConversationManager().addAssistantMessage(uuid, finalAnswer);
-maybeCompressCondensedSummary(uuid);
-limiter.addTokensUsed(uuid, result.totalTokens());
-plugin.getStatsService().recordSuccess(player.getName(), result.modelUsed(), duration, result.totalTokens());
-plugin.getDebugLogger().requestLog(player.getName(), finalQuestion, result.modelUsed(), duration);
-plugin.getHistoryLogger().log(uuid, player.getName(), finalQuestion, finalAnswer);
+                plugin.getConversationManager().addAssistantMessage(uuid, finalAnswer);
+                maybeCompressCondensedSummary(uuid);
+                limiter.addTokensUsed(uuid, result.totalTokens());
+                plugin.getStatsService().recordSuccess(player.getName(), result.modelUsed(), duration, result.totalTokens());
+                plugin.getDebugLogger().requestLog(player.getName(), finalQuestion, result.modelUsed(), duration);
+                plugin.getHistoryLogger().log(uuid, player.getName(), finalQuestion, finalAnswer);
 
-Bukkit.getScheduler().runTask(plugin, () -> {
+                Bukkit.getScheduler().runTask(plugin, () -> {
 
-    VerityAnswerEvent answerEvent = new VerityAnswerEvent(
-            player,
-            finalQuestion,
-            finalAnswer,
-            result.modelUsed()
-    );
+                    VerityAnswerEvent answerEvent = new VerityAnswerEvent(
+                            player,
+                            finalQuestion,
+                            finalAnswer,
+                            result.modelUsed()
+                    );
 
-    Bukkit.getPluginManager().callEvent(answerEvent);
+                    Bukkit.getPluginManager().callEvent(answerEvent);
 
-    String eventAnswer = answerEvent.getAnswer();
+                    String eventAnswer = answerEvent.getAnswer();
 
-    deliverAnswer(player, eventAnswer, result.modelUsed(), duration);
+                    deliverAnswer(player, eventAnswer, result.modelUsed(), duration);
 
-    if (onAnswer != null) {
-        onAnswer.accept(eventAnswer);
-    }
+                    if (onAnswer != null) {
+                        onAnswer.accept(eventAnswer);
+                    }
 
-});
-                }
-             catch (Exception e) {
+                });
+            } catch (Exception e) {
                 plugin.getStatsService().recordFailure();
                 plugin.getLogger().log(Level.WARNING, "VerityAI: AI request failed for " + player.getName(), e);
                 plugin.getDebugLogger().errorLog("ask(" + player.getName() + ")", e);
@@ -309,7 +308,9 @@ Bukkit.getScheduler().runTask(plugin, () -> {
             Component askerTag = Component.text("@" + player.getName() + " ", NamedTextColor.GOLD);
             Component message = prefix.append(askerTag).append(mentionify(answer, player));
             player.sendMessage(message);
-            pingMention(player, player);
+            if (plugin.getConfigManager().isAnswerSoundEnabled()) {
+                pingMention(player, player);
+            }
 
             if (plugin.getConfigManager().isDebugEnabled()) {
                 player.sendMessage(Component.text(

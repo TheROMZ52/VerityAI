@@ -31,8 +31,7 @@ public class RateLimiter {
     private final Map<UUID, LocalDate> tokenResetDate = new ConcurrentHashMap<>();
 
     private final Window globalWindow = new Window();
-    private volatile Semaphore concurrencySlots;
-    private volatile int concurrencySlotsConfiguredFor = -1;
+    private volatile ResizableSemaphore concurrencySlots;
 
     public RateLimiter(VerityAI plugin) {
         this.plugin = plugin;
@@ -120,14 +119,39 @@ public class RateLimiter {
         }
     }
 
-    /** Lazily (re)builds the concurrency semaphore if the configured limit has changed. */
+    /** Lazily builds the concurrency semaphore, resizing it in place if the configured limit changed. */
     private synchronized Semaphore concurrencySlots() {
         int configured = Math.max(1, plugin.getConfigManager().getMaxConcurrentRequests());
-        if (concurrencySlots == null || concurrencySlotsConfiguredFor != configured) {
-            concurrencySlots = new Semaphore(configured);
-            concurrencySlotsConfiguredFor = configured;
+        if (concurrencySlots == null) {
+            concurrencySlots = new ResizableSemaphore(configured);
+        } else {
+            // Resize the SAME semaphore instance in place — swapping in a brand-new
+            // Semaphore object here would lose track of permits already held by any
+            // request that's currently in-flight, letting more than the configured
+            // number of concurrent requests through right after a reload.
+            concurrencySlots.resizeTo(configured);
         }
         return concurrencySlots;
+    }
+
+    /** A Semaphore whose total permit count can be adjusted after construction. */
+    private static class ResizableSemaphore extends Semaphore {
+        private int currentTarget;
+
+        ResizableSemaphore(int permits) {
+            super(permits);
+            this.currentTarget = permits;
+        }
+
+        synchronized void resizeTo(int target) {
+            int delta = target - currentTarget;
+            if (delta > 0) {
+                release(delta);
+            } else if (delta < 0) {
+                reducePermits(-delta);
+            }
+            currentTarget = target;
+        }
     }
 
     /** Tiny thread-safe timestamp ring used for per-minute sliding windows (per-player and global). */

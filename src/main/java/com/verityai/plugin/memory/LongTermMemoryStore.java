@@ -90,7 +90,12 @@ public class LongTermMemoryStore {
                 double[] scores = new double[facts.size()];
                 for (int i = 0; i < facts.size(); i++) {
                     indices[i] = i;
-                    scores[i] = EmbeddingService.cosineSimilarity(queryVector, vectors.get(i));
+                    // A null vector means this fact predates embeddings being enabled and
+                    // was never backfilled — treat it as "no signal" (sinks to the bottom)
+                    // instead of crashing the whole lookup.
+                    double[] existingVector = vectors.get(i);
+                    scores[i] = existingVector == null ? -1.0
+                            : EmbeddingService.cosineSimilarity(queryVector, existingVector);
                 }
                 java.util.Arrays.sort(indices, (x, y) -> Double.compare(scores[y], scores[x]));
                 List<String> result = new ArrayList<>();
@@ -130,6 +135,17 @@ public class LongTermMemoryStore {
                         vectors.add(vec);
                     }
                 }
+            }
+            // Pad with nulls (or truncate) so the vectors list always starts out the same
+            // length as facts — otherwise a player with facts saved before embeddings was
+            // ever enabled would have a permanently shorter vectors list, and every future
+            // isDuplicate/getRelevantFacts size check would silently skip semantic matching
+            // for them forever.
+            while (vectors.size() < facts.size()) {
+                vectors.add(null);
+            }
+            while (vectors.size() > facts.size()) {
+                vectors.remove(vectors.size() - 1);
             }
             embeddingsCache.put(id, vectors);
             return facts;
@@ -205,9 +221,7 @@ public class LongTermMemoryStore {
         for (int i = 0; i < existingFacts.size(); i++) {
             String existing = existingFacts.get(i);
             String normalizedExisting = normalize(existing);
-            if (normalizedExisting.equals(normalizedCandidate)
-                    || normalizedExisting.contains(normalizedCandidate)
-                    || normalizedCandidate.contains(normalizedExisting)) {
+            if (isNearIdenticalText(normalizedExisting, normalizedCandidate)) {
                 return true;
             }
             if (canCompareSemantically && existingVectors.get(i) != null) {
@@ -218,6 +232,24 @@ public class LongTermMemoryStore {
             }
         }
         return false;
+    }
+
+    /**
+     * Text-only near-duplicate check: exact match, or one is a prefix/suffix of the other
+     * AND they're close in length. Plain substring containment alone is too aggressive —
+     * it would treat "[interest] likes building" as a duplicate of the much more specific
+     * "[interest] likes building enormous castles", silently discarding the newer, more
+     * detailed fact. Requiring the lengths to be close keeps catching real near-duplicates
+     * (trailing punctuation, a trailing "." or minor rewording) without eating genuinely
+     * new information.
+     */
+    private boolean isNearIdenticalText(String a, String b) {
+        if (a.equals(b)) return true;
+        if (!a.contains(b) && !b.contains(a)) return false;
+        int shorter = Math.min(a.length(), b.length());
+        int longer = Math.max(a.length(), b.length());
+        int diff = longer - shorter;
+        return diff <= 10 || diff <= longer * 0.2;
     }
 
     private String normalize(String text) {

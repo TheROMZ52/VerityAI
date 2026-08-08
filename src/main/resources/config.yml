@@ -11,11 +11,17 @@ ai:
   api-keys:
     - "YOUR_OPENROUTER_KEY_HERE"
 
-  # Primary model
-  model: "nvidia/nemotron-3-ultra-550b-a55b:free"
+  # Primary model — chosen for reliable native tool/function-calling support.
+  # OpenRouter's free catalog rotates weekly, so the fallback chain below
+  # matters as much as this pick; check openrouter.ai/models?supported_parameters=tools
+  # occasionally and update this if it ever gets delisted.
+  model: "nvidia/nemotron-3-super-120b-a12b:free"
 
-  # Tried in order if the primary model fails
-  fallback-models: []
+  # Tried in order if the primary model fails (delisted, rate-limited, down, etc.)
+  fallback-models:
+    - "nvidia/nemotron-3-ultra-550b-a55b:free"
+    - "inclusionai/ling-3.0-flash:free"
+    - "openrouter/free"
 
   max-tokens: 500
   temperature: 0.7
@@ -119,6 +125,10 @@ chat:
   # How long (seconds) a player stays in "conversation mode" after
   # /verity chat or their last message, before needing the trigger again
   conversation-timeout-seconds: 60
+
+  # Plays a small notification "ping" sound to a player when Verity's answer
+  # arrives, so they notice it even if they've alt-tabbed or looked away.
+  answer-sound: true
 
 memory:
   # How many recent turns (per player) are kept in short-term memory and

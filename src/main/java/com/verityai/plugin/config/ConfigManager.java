@@ -66,6 +66,7 @@ public class ConfigManager {
     private String thinkingMessage;
     private String language;
     private long conversationTimeoutSeconds;
+    private boolean answerSoundEnabled;
 
     // memory.*
     private int shortTermLimit;
@@ -152,7 +153,7 @@ public class ConfigManager {
                 .map(String::trim)
                 .filter(k -> !k.isEmpty() && !k.contains("YOUR_"))
                 .collect(java.util.stream.Collectors.toList());
-        this.model = c.getString("ai.model", "nvidia/nemotron-3-ultra-550b-a55b:free");
+        this.model = c.getString("ai.model", "nvidia/nemotron-3-super-120b-a12b:free");
         this.fallbackModels = c.getStringList("ai.fallback-models");
         this.maxTokens = c.getInt("ai.max-tokens", 500);
         this.temperature = c.getDouble("ai.temperature", 0.7);
@@ -207,6 +208,7 @@ public class ConfigManager {
         this.thinkingMessage = c.getString("chat.thinking-message", "&7Verity is thinking...");
         this.language = c.getString("chat.language", "auto");
         this.conversationTimeoutSeconds = c.getLong("chat.conversation-timeout-seconds", 60);
+        this.answerSoundEnabled = c.getBoolean("chat.answer-sound", true);
 
         this.shortTermLimit = positiveOrDefault(c.getInt("memory.short-term-limit", 10), 10);
         this.longTermEnabled = c.getBoolean("memory.long-term-enabled", false);
@@ -438,6 +440,7 @@ public class ConfigManager {
     public String getThinkingMessage() { return thinkingMessage; }
     public String getLanguage() { return language; }
     public long getConversationTimeoutSeconds() { return conversationTimeoutSeconds; }
+    public boolean isAnswerSoundEnabled() { return answerSoundEnabled; }
 
     public int getShortTermLimit() { return shortTermLimit; }
     public boolean isLongTermEnabled() { return longTermEnabled; }
