@@ -283,29 +283,58 @@ public class FunctionCallService {
             return "environment lookup failed: " + e.getMessage();
         }
     }
+private String getPlayerStatus(Player player) {
+    // Create a future for the main-thread Bukkit lookup.
+    java.util.concurrent.CompletableFuture<String> future =
+            new java.util.concurrent.CompletableFuture<>();
 
-    private String getPlayerStatus(Player player) {
-        java.util.concurrent.CompletableFuture<String> future = new java.util.concurrent.CompletableFuture<>();
-        org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
-            try {
-                var loc = player.getLocation();
-                var maxHealthAttr = player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH);
-                double maxHealth = maxHealthAttr != null ? maxHealthAttr.getValue() : 20.0;
-                future.complete(String.format(
-                        "health=%.1f/%.1f, food=%d/20, gamemode=%s, world=%s, x=%d, y=%d, z=%d",
-                        player.getHealth(), maxHealth, player.getFoodLevel(), player.getGameMode(),
-                        player.getWorld().getName(), loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()));
-            } catch (Throwable t) {
-                future.complete("status lookup failed: " + t.getMessage());
-            }
-        });
+    // Read Bukkit player data on the main thread.
+    org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
         try {
-            return future.get(5, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            return "status lookup timed out: " + e.getMessage();
-        }
-    }
+            // Get the player's current location.
+            var loc = player.getLocation();
 
+            // Resolve the max-health attribute by name for 1.21.x compatibility.
+            org.bukkit.attribute.Attribute maxHealthAttribute;
+
+            try {
+                // Newer Bukkit/Paper API naming.
+                maxHealthAttribute = org.bukkit.attribute.Attribute.valueOf("MAX_HEALTH");
+            } catch (IllegalArgumentException e) {
+                // Older Bukkit/Paper API naming.
+                maxHealthAttribute = org.bukkit.attribute.Attribute.valueOf("GENERIC_MAX_HEALTH");
+            }
+
+            // Read the player's maximum health.
+            var maxHealthAttr = player.getAttribute(maxHealthAttribute);
+            double maxHealth = maxHealthAttr != null ? maxHealthAttr.getValue() : 20.0;
+
+            // Build the player status response.
+            future.complete(String.format(
+                    "health=%.1f/%.1f, food=%d/20, gamemode=%s, world=%s, x=%d, y=%d, z=%d",
+                    player.getHealth(),
+                    maxHealth,
+                    player.getFoodLevel(),
+                    player.getGameMode(),
+                    player.getWorld().getName(),
+                    loc.getBlockX(),
+                    loc.getBlockY(),
+                    loc.getBlockZ()
+            ));
+        } catch (Throwable t) {
+            // Return a readable error instead of breaking the function call.
+            future.complete("status lookup failed: " + t.getMessage());
+        }
+    });
+
+    // Wait for the main-thread lookup to complete.
+    try {
+        return future.get(5, TimeUnit.SECONDS);
+    } catch (Exception e) {
+        // Prevent the function call from waiting indefinitely.
+        return "status lookup timed out: " + e.getMessage();
+    }
+}
     private String getNearbyTerrain(Player player) {
         try {
             return plugin.getWorldQueryService().describeSurroundingTerrain(player).get(5, TimeUnit.SECONDS);
