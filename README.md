@@ -137,9 +137,23 @@ mvn clean package
 ```
 The finished jar is written to `target/VerityAI.jar`.
 
-## 📄 License
+## 📜 License
 
-MIT
+VerityAI is free and open-source software licensed under the **GNU General Public License v3.0 (GPL-3.0)**.
+
+You are free to:
+
+* ✅ Use VerityAI for personal or commercial purposes
+* ✅ Study and modify the source code
+* ✅ Fork and redistribute modified versions
+* ✅ Distribute copies of the plugin
+
+When redistributing VerityAI or a modified version, you must comply with the terms of the **GPL-3.0** license.
+
+The full license text is available in the [`LICENSE`](LICENSE) file.
+
+**Copyright © 2026 TheROMZ52**
+
 ## 🚀 Support
 
 If you find a bug or have a suggestion, please create an issue or contact the developer.
