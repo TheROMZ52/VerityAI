@@ -59,6 +59,8 @@ public class ConfigManager {
     private String serverVersion;
     private String ownerName;
     private String ownerUuid;
+    private final java.util.Set<String> opUuids = new java.util.LinkedHashSet<>();
+    private final java.util.Map<String, String> opNames = new java.util.LinkedHashMap<>(); // uuid -> last known name, for display only
 
     // chat.*
     private String prefix;
@@ -155,7 +157,7 @@ public class ConfigManager {
                 .collect(java.util.stream.Collectors.toList());
         this.model = c.getString("ai.model", "nvidia/nemotron-3-super-120b-a12b:free");
         this.fallbackModels = c.getStringList("ai.fallback-models");
-        this.maxTokens = c.getInt("ai.max-tokens", 500);
+        this.maxTokens = c.getInt("ai.max-tokens", 800);
         this.temperature = c.getDouble("ai.temperature", 0.7);
         this.streamEnabled = c.getBoolean("ai.stream", true);
         this.siteUrl = c.getString("ai.site-url", "");
@@ -202,6 +204,18 @@ public class ConfigManager {
         this.serverVersion = c.getString("server-info.version", "1.21.8");
         this.ownerName = c.getString("server-info.owner", "");
         this.ownerUuid = c.getString("server-info.owner-uuid", "");
+
+        opUuids.clear();
+        opNames.clear();
+        for (Map<?, ?> row : c.getMapList("server-info.ops")) {
+            Object uuidObj = row.get("uuid");
+            if (uuidObj == null) continue;
+            String uuid = uuidObj.toString();
+            opUuids.add(uuid);
+            if (row.get("name") != null) {
+                opNames.put(uuid, row.get("name").toString());
+            }
+        }
 
         this.prefix = c.getString("chat.prefix", "&b[Verity]&r ");
         this.trigger = c.getString("chat.trigger", "@verity");
@@ -423,6 +437,63 @@ public class ConfigManager {
 
     private boolean isOwnerName(String playerName) {
         return playerName != null && !getOwnerName().isBlank() && getOwnerName().equalsIgnoreCase(playerName);
+    }
+
+    /**
+     * "Operators" are the owner PLUS anyone added via /verity op add — a small,
+     * explicitly-trusted set of players who also get access to
+     * owner-only-console-whitelist commands (full console privileges). Stored
+     * by UUID for the same impersonation-resistance reason as the owner.
+     */
+    public boolean isOperator(Player player) {
+        if (player == null) return false;
+        if (isOwner(player)) return true;
+        return opUuids.contains(player.getUniqueId().toString());
+    }
+
+    /** Adds a player to the trusted-operator list. Returns false if they're already on it. */
+    public boolean addOp(Player player) {
+        String uuid = player.getUniqueId().toString();
+        if (!opUuids.add(uuid)) {
+            return false;
+        }
+        opNames.put(uuid, player.getName());
+        persistOps();
+        return true;
+    }
+
+    /** Removes a player from the trusted-operator list by their current or last-known name. Returns false if not found. */
+    public boolean removeOp(String name) {
+        String matchUuid = null;
+        for (var entry : opNames.entrySet()) {
+            if (entry.getValue().equalsIgnoreCase(name)) {
+                matchUuid = entry.getKey();
+                break;
+            }
+        }
+        if (matchUuid == null) return false;
+        opUuids.remove(matchUuid);
+        opNames.remove(matchUuid);
+        persistOps();
+        return true;
+    }
+
+    /** Display names of everyone currently on the trusted-operator list. */
+    public List<String> getOpNames() {
+        List<String> names = new ArrayList<>();
+        for (String uuid : opUuids) {
+            names.add(opNames.getOrDefault(uuid, uuid));
+        }
+        return names;
+    }
+
+    private void persistOps() {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (String uuid : opUuids) {
+            rows.add(Map.of("uuid", uuid, "name", opNames.getOrDefault(uuid, "")));
+        }
+        plugin.getConfig().set("server-info.ops", rows);
+        plugin.saveConfig();
     }
 
     public String getMapWebUrl() { return mapWebUrl; }
