@@ -1,6 +1,7 @@
 <div align="center">
 
-<img src="https://cdn.modrinth.com/data/cached_images/a20fc1f9c30851b62c2264a9c179e817654f2652.jpeg" width="140" alt="VerityAI logo"/>
+  ![verity banner](https://cdn.modrinth.com/data/cached_images/a20fc1f9c30851b62c2264a9c179e817654f2652.jpeg)
+
 
 # VerityAI
 
