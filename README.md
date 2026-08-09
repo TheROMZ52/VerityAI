@@ -8,7 +8,7 @@
 
 [![Modrinth](https://img.shields.io/badge/Modrinth-VerityAI-1bd96a?logo=modrinth&logoColor=white)](https://modrinth.com/plugin/verityai)
 [![bStats Servers](https://img.shields.io/bstats/servers/33005?label=servers)](https://bstats.org/plugin/bukkit/VerityAI/33005)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-GPL-blue)](LICENSE)
 
 </div>
 
