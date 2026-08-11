@@ -84,12 +84,13 @@ VerityAI automatically switches to another key if the current key fails or reach
 | `/verity info` | Show plugin information |
 | `/verity toggle` | Enable or disable Verity |
 | `/verity personality [name]` | Change AI personality preset |
-| `/verity owner [player]` | View or set server owner |
+| `/verity owner [player]` | View or set server owner (target must be online) |
+| `/verity op <add\|remove\|list> [player]` | Manage trusted "ops" who get the same elevated command access as the owner |
 | `/verity map` | Show in-chat mini-map |
 | `/verity stats` | Show usage statistics |
 | `/verity model [name]` | View or switch AI model |
 | `/verity task <add\|remove\|list>` | Manage personal reminders |
-| `/verity quest` | Generate a random quest |
+| `/verity quest [interval <minutes>]` | Generate a quest, or configure automatic quests for everyone online |
 | `/verity tutorial <topic>` | Get in-game help |
 | `/verity feedback <good\|bad> [correction]` | Submit AI feedback |
 

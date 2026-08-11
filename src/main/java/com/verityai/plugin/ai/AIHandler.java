@@ -125,12 +125,26 @@ public class AIHandler {
 
                 answer = extractAndSaveMemories(uuid, answer);
 
-                var cmdResult = plugin.getAiCommandExecutor().process(player, answer);
-                answer = cmdResult.cleanedText();
-                if (!cmdResult.executedCommands().isEmpty()) {
-                    notifyCommandsRan(player, cmdResult.executedCommands());
-                    for (int i = 0; i < cmdResult.executedCommands().size(); i++) {
-                        plugin.getStatsService().recordCommandExecuted();
+                if (result.truncated()) {
+                    // The model got cut off by max-tokens. Never process [[CMD: ...]] tags from
+                    // a truncated answer — an incomplete tag either won't match our regex (and
+                    // its broken fragment would otherwise leak into the visible reply) or, worse,
+                    // could match a cut-short/malformed command. Just strip any dangling
+                    // "[[CMD:" fragment and let the player know.
+                    answer = stripDanglingCommandTag(answer);
+                    if (!answer.isBlank()) {
+                        answer = answer.stripTrailing() + " (…cut off — try asking again, maybe more briefly)";
+                    } else {
+                        answer = "My reply got cut off before I could finish — try asking again, maybe a bit more briefly.";
+                    }
+                } else {
+                    var cmdResult = plugin.getAiCommandExecutor().process(player, answer);
+                    answer = cmdResult.cleanedText();
+                    if (!cmdResult.executedCommands().isEmpty()) {
+                        notifyCommandsRan(player, cmdResult.executedCommands());
+                        for (int i = 0; i < cmdResult.executedCommands().size(); i++) {
+                            plugin.getStatsService().recordCommandExecuted();
+                        }
                     }
                 }
 
@@ -175,6 +189,19 @@ public class AIHandler {
                 limiter.markFinished(uuid);
             }
         });
+    }
+
+    /** Removes a trailing, unclosed "[[CMD:" fragment (no matching "]]") left over from a truncated answer. */
+    private String stripDanglingCommandTag(String answer) {
+        if (answer == null) return "";
+        int idx = answer.lastIndexOf("[[CMD:");
+        if (idx < 0) return answer;
+        // Only strip it if it's genuinely unclosed — a complete, already-matched tag
+        // would have been removed by AiCommandExecutor already on the non-truncated path.
+        if (answer.indexOf("]]", idx) < 0) {
+            return answer.substring(0, idx).stripTrailing();
+        }
+        return answer;
     }
 
     /** Pulls [REMEMBER: fact] tags out of the AI's answer, saves each fact, and returns the cleaned text. */

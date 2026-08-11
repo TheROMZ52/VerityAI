@@ -24,10 +24,11 @@ public class VerityCommand implements CommandExecutor, TabCompleter {
     /** Keep this in sync with the subcommands handled in {@link #onCommand}. */
     private static final List<String> SUBCOMMANDS = List.of(
             "reload", "clear", "info", "debug", "toggle", "chat", "personality",
-            "owner", "map", "stats", "model", "task", "quest", "tutorial", "feedback"
+            "owner", "op", "map", "stats", "model", "task", "quest", "tutorial", "feedback"
     );
 
     private static final List<String> TASK_SUBCOMMANDS = List.of("add", "remove", "list");
+    private static final List<String> OP_SUBCOMMANDS = List.of("add", "remove", "list");
 
     private final VerityAI plugin;
 
@@ -52,6 +53,7 @@ public class VerityCommand implements CommandExecutor, TabCompleter {
             case "chat" -> handleChatMode(sender);
             case "personality" -> handlePersonality(sender, args);
             case "owner" -> handleOwner(sender, args);
+            case "op" -> handleOp(sender, args);
             case "map" -> handleMap(sender);
             case "stats" -> handleStats(sender);
             case "model" -> handleModel(sender, args);
@@ -81,12 +83,22 @@ public class VerityCommand implements CommandExecutor, TabCompleter {
         if (args.length == 2) {
             return switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "clear", "owner" -> filterStartingWith(onlinePlayerNames(), args[1]);
+                case "op" -> filterStartingWith(OP_SUBCOMMANDS, args[1]);
                 case "task" -> filterStartingWith(TASK_SUBCOMMANDS, args[1]);
                 case "quest" -> filterStartingWith(List.of("interval"), args[1]);
                 case "toggle" -> filterStartingWith(List.of("on", "off"), args[1]);
                 case "feedback" -> filterStartingWith(List.of("good", "bad"), args[1]);
                 default -> List.of();
             };
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("op")) {
+            if (args[1].equalsIgnoreCase("add")) {
+                return filterStartingWith(onlinePlayerNames(), args[2]);
+            }
+            if (args[1].equalsIgnoreCase("remove")) {
+                return filterStartingWith(plugin.getConfigManager().getOpNames(), args[2]);
+            }
         }
 
         return List.of();
@@ -263,6 +275,51 @@ public class VerityCommand implements CommandExecutor, TabCompleter {
         }
         cfg.setOwner(target);
         sender.sendMessage(Component.text("Server owner set to: " + target.getName(), NamedTextColor.GREEN));
+        return true;
+    }
+
+    private boolean handleOp(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("verity.op.manage")) {
+            deny(sender);
+            return true;
+        }
+        var cfg = plugin.getConfigManager();
+        String sub = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "list";
+
+        switch (sub) {
+            case "add" -> {
+                if (args.length < 3) {
+                    sender.sendMessage(Component.text("Usage: /verity op add <player>", NamedTextColor.YELLOW));
+                    return true;
+                }
+                Player target = Bukkit.getPlayerExact(args[2]);
+                if (target == null) {
+                    sender.sendMessage(Component.text("That player needs to be online right now to add them as an op.",
+                            NamedTextColor.RED));
+                    return true;
+                }
+                boolean added = cfg.addOp(target);
+                sender.sendMessage(added
+                        ? Component.text(target.getName() + " added as a Verity op (gets owner-only-console-whitelist access).", NamedTextColor.GREEN)
+                        : Component.text(target.getName() + " is already a Verity op.", NamedTextColor.GRAY));
+            }
+            case "remove" -> {
+                if (args.length < 3) {
+                    sender.sendMessage(Component.text("Usage: /verity op remove <player>", NamedTextColor.YELLOW));
+                    return true;
+                }
+                boolean removed = cfg.removeOp(args[2]);
+                sender.sendMessage(removed
+                        ? Component.text(args[2] + " removed from Verity ops.", NamedTextColor.GREEN)
+                        : Component.text("No op with that name.", NamedTextColor.RED));
+            }
+            default -> {
+                var names = cfg.getOpNames();
+                sender.sendMessage(names.isEmpty()
+                        ? Component.text("No Verity ops set (besides the owner). Add one: /verity op add <player>", NamedTextColor.GRAY)
+                        : Component.text("Verity ops: " + String.join(", ", names), NamedTextColor.AQUA));
+            }
+        }
         return true;
     }
 
@@ -495,7 +552,7 @@ public class VerityCommand implements CommandExecutor, TabCompleter {
 
     private void sendUsage(CommandSender sender) {
         sender.sendMessage(Component.text(
-                "Usage: /verity <reload|clear [player]|info|debug|toggle|chat|personality [name]|owner [player]|"
+                "Usage: /verity <reload|clear [player]|info|debug|toggle|chat|personality [name]|owner [player]|op <add|remove|list> [player]|"
                         + "map|stats|model [name]|task <add|remove|list>|quest|tutorial <topic>|feedback <good|bad> [correction]>",
                 NamedTextColor.YELLOW));
     }

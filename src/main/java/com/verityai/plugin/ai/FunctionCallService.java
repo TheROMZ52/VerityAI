@@ -112,9 +112,9 @@ public class FunctionCallService {
 
         if (plugin.getConfigManager().isCommandsEnabled()) {
             var cfg = plugin.getConfigManager();
-            boolean isOwner = cfg.isOwner(player);
+            boolean isOperator = cfg.isOperator(player);
             var whitelist = cfg.getCommandWhitelist();
-            var ownerWhitelist = isOwner ? cfg.getOwnerCommandWhitelist() : java.util.List.<String>of();
+            var ownerWhitelist = isOperator ? cfg.getOwnerCommandWhitelist() : java.util.List.<String>of();
             boolean hasAnyAllowedCommand = cfg.isCommandAllowAll()
                     || (whitelist != null && !whitelist.isEmpty()) || !ownerWhitelist.isEmpty();
             if (hasAnyAllowedCommand) {

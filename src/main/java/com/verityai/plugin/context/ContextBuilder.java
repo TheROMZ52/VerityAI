@@ -138,7 +138,7 @@ public class ContextBuilder {
             // When function-calling is enabled, commands go through the structured
             // run_command tool instead of this text-tag convention.
             List<String> whitelist = cfg.getCommandWhitelist();
-            List<String> ownerWhitelist = cfg.isOwner(player) ? cfg.getOwnerCommandWhitelist() : List.of();
+            List<String> ownerWhitelist = cfg.isOperator(player) ? cfg.getOwnerCommandWhitelist() : List.of();
             if ((whitelist != null && !whitelist.isEmpty()) || !ownerWhitelist.isEmpty()) {
                 sb.append("\n--- Commands you're allowed to run for this player ---\n");
                 if (whitelist != null && !whitelist.isEmpty()) {

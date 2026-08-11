@@ -34,12 +34,12 @@ public class OpenRouterClient {
         this.plugin = plugin;
     }
 
-    public record AiResult(String content, String modelUsed, int totalTokens) {}
+    public record AiResult(String content, String modelUsed, int totalTokens, boolean truncated) {}
 
     public record ToolCall(String id, String name, String argumentsJson) {}
 
     /** Raw result of a single request: content may be null when the model instead requested tool calls. */
-    private record RawResult(String content, List<ToolCall> toolCalls, int totalTokens) {}
+    private record RawResult(String content, List<ToolCall> toolCalls, int totalTokens, boolean truncated) {}
 
     /** Implemented by the caller to actually run a function and return its (JSON-ish) result text. */
     public interface FunctionExecutor {
@@ -84,7 +84,7 @@ public class OpenRouterClient {
                             return doStreamingRequest(messages, model, key, cfg.getApiUrl(), cfg.getMaxTokens(), cfg.getTemperature(), onChunk);
                         }
                         RawResult raw = doBlockingRequest(messages, model, key, cfg.getApiUrl(), cfg.getMaxTokens(), cfg.getTemperature(), null);
-                        return new AiResult(raw.content() == null ? "" : raw.content(), model, raw.totalTokens());
+                        return new AiResult(raw.content() == null ? "" : raw.content(), model, raw.totalTokens(), raw.truncated());
                     } catch (TransientFailure tf) {
                         lastError = tf;
                         plugin.getDebugLogger().debug(String.format(
@@ -140,7 +140,11 @@ public class OpenRouterClient {
                             roundTokens += raw.totalTokens();
 
                             if (raw.toolCalls() == null || raw.toolCalls().isEmpty()) {
-                                return new AiResult(raw.content() == null ? "" : raw.content(), model, totalTokens + roundTokens);
+                                return new AiResult(raw.content() == null ? "" : raw.content(), model, totalTokens + roundTokens, raw.truncated());
+                            }
+
+                            if (raw.truncated()) {
+                                return new AiResult("My reply got cut off before I could finish that action safely, " + "so I didn't run it, try asking again, maybe a bit more briefly.", model, totalTokens + roundTokens, true);
                             }
 
                             // Record the assistant's tool-call request, then run each tool and append its result.
@@ -178,7 +182,7 @@ public class OpenRouterClient {
                         }
                         // Ran out of rounds — ask once more without tools to force a final answer.
                         RawResult finalRaw = doBlockingRequest(convo, model, key, cfg.getApiUrl(), cfg.getMaxTokens(), cfg.getTemperature(), null);
-                        return new AiResult(finalRaw.content() == null ? "" : finalRaw.content(), model, totalTokens + roundTokens + finalRaw.totalTokens());
+                        return new AiResult(finalRaw.content() == null ? "" : finalRaw.content(), model, totalTokens + roundTokens + finalRaw.totalTokens(), finalRaw.truncated());
                     } catch (TransientFailure tf) {
                         lastError = tf;
                         plugin.getDebugLogger().debug(String.format(
@@ -348,7 +352,9 @@ public class OpenRouterClient {
             // immediately burning through the remaining keys/models.
             throw new TransientFailure(200, "Empty choices in response.");
         }
-        JsonObject message = choices.get(0).getAsJsonObject().getAsJsonObject("message");
+        JsonObject choiceObj = choices.get(0).getAsJsonObject();
+        JsonObject message = choiceObj.getAsJsonObject("message");
+        boolean truncated = choiceObj.has("finish_reason") && !choiceObj.get("finish_reason").isJsonNull() && "length".equals(choiceObj.get("finish_reason").getAsString());
 
         String content = (message.has("content") && !message.get("content").isJsonNull())
                 ? message.get("content").getAsString().trim() : null;
@@ -370,7 +376,7 @@ public class OpenRouterClient {
             totalTokens = json.getAsJsonObject("usage").get("total_tokens").getAsInt();
         }
 
-        return new RawResult(content, toolCalls, totalTokens);
+        return new RawResult(content, toolCalls, totalTokens, truncated);
     }
 
     private AiResult doStreamingRequest(JsonArray messages, String model, String apiKey, String url,
@@ -395,6 +401,7 @@ public class OpenRouterClient {
 
         StringBuilder full = new StringBuilder();
         int[] totalTokens = {0};
+        boolean[] truncated = {false};
 
         response.body().forEach(line -> {
             if (line == null || line.isBlank() || !line.startsWith("data:")) {
@@ -408,13 +415,17 @@ public class OpenRouterClient {
                 JsonObject chunk = JsonParser.parseString(payload).getAsJsonObject();
                 JsonArray choices = chunk.getAsJsonArray("choices");
                 if (choices != null && !choices.isEmpty()) {
-                    JsonObject delta = choices.get(0).getAsJsonObject().getAsJsonObject("delta");
+                    JsonObject choiceObj = choices.get(0).getAsJsonObject();
+                    JsonObject delta = choiceObj.getAsJsonObject("delta");
                     if (delta != null && delta.has("content") && !delta.get("content").isJsonNull()) {
                         String piece = delta.get("content").getAsString();
                         full.append(piece);
                         if (onChunk != null) {
                             onChunk.accept(piece);
                         }
+                    }
+                    if (choiceObj.has("finish_reason") && !choiceObj.get("finish_reason").isJsonNull() && "length".equals(choiceObj.get("finish_reason").getAsString())) {
+                        truncated[0] = true;
                     }
                 }
                 if (chunk.has("usage") && chunk.getAsJsonObject("usage").has("total_tokens")) {
@@ -429,7 +440,7 @@ public class OpenRouterClient {
             throw new RuntimeException("Streaming response produced no content.");
         }
 
-        return new AiResult(full.toString().trim(), model, totalTokens[0]);
+        return new AiResult(full.toString().trim(), model, totalTokens[0], truncated[0]);
     }
 
     private String truncate(String text) {

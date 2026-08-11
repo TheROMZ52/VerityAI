@@ -1,5 +1,5 @@
 name: VerityAI
-version: '4.2.0'
+version: '4.3.0'
 main: com.verityai.plugin.VerityAI
 api-version: '1.21'
 author: YourName
@@ -9,7 +9,7 @@ softdepend: [PlaceholderAPI, Vault, LuckPerms, Essentials]
 commands:
   verity:
     description: Manage the VerityAI plugin.
-    usage: /verity <reload|clear [player]|info|debug|toggle|chat|personality [name]|owner [player]|map|stats|model [name]|task <add|remove|list>|quest|tutorial <topic>|feedback <good|bad> [correction]>
+    usage: /verity <reload|clear [player]|info|debug|toggle|chat|personality [name]|owner [player]|op <add|remove|list> [player]|map|stats|model [name]|task <add|remove|list>|quest|tutorial <topic>|feedback <good|bad> [correction]>
 
 permissions:
   verity.use:
@@ -35,6 +35,9 @@ permissions:
     default: op
   verity.owner:
     description: Allows viewing/setting the configured server owner.
+    default: op
+  verity.op.manage:
+    description: Allows adding/removing trusted "ops" who get owner-only-console-whitelist access alongside the owner.
     default: op
   verity.map:
     description: Allows viewing the in-chat mini-map (/verity map).

@@ -23,7 +23,12 @@ ai:
     - "inclusionai/ling-3.0-flash:free"
     - "openrouter/free"
 
-  max-tokens: 500
+  max-tokens: 800
+  # Raising this further helps if Verity's answers (or, worse, a command it's
+  # about to run) get cut off mid-way — VerityAI now detects a cut-off
+  # response and refuses to run anything from it rather than risk executing
+  # a half-finished command, but a higher limit avoids the cutoff happening
+  # at all for longer requests.
   temperature: 0.7
 
   # Live token-by-token streaming (shown as a "Verity is thinking..." action bar
@@ -106,6 +111,11 @@ server-info:
   # Verity is told when it's talking to this player, and (if commands.enabled)
   # the owner-only-console-whitelist below only ever applies to this name.
   owner: ""
+  # Managed by /verity op add|remove — a small set of additional trusted
+  # players (besides the owner) who also get owner-only-console-whitelist
+  # access. Stored by UUID, not just name; don't hand-edit this, use the
+  # command so the UUID gets captured correctly.
+  ops: []
 
 chat:
   # Shown before every message Verity sends
@@ -257,8 +267,8 @@ commands:
     # - "home"
     # - "kit"
     # - "warp"
-  # Only ever runs with full CONSOLE privileges, and only for the single
-  # player named in server-info.owner. Leave empty unless you understand
+  # Only ever runs with full CONSOLE privileges, for the server owner AND
+  # anyone added via /verity op add. Leave empty unless you understand
   # the risk — this is the one path NOT limited to the asking player's own
   # permissions, regardless of whitelist-mode above.
   owner-only-console-whitelist: []
