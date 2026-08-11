@@ -1,6 +1,7 @@
 <div align="center">
 
-<img src="https://cdn.modrinth.com/data/cached_images/a20fc1f9c30851b62c2264a9c179e817654f2652.jpeg" width="140" alt="VerityAI logo"/>
+  ![verity banner](https://cdn.modrinth.com/data/cached_images/a20fc1f9c30851b62c2264a9c179e817654f2652.jpeg)
+
 
 # VerityAI
 
@@ -8,7 +9,7 @@
 
 [![Modrinth](https://img.shields.io/badge/Modrinth-VerityAI-1bd96a?logo=modrinth&logoColor=white)](https://modrinth.com/plugin/verityai)
 [![bStats Servers](https://img.shields.io/bstats/servers/33005?label=servers)](https://bstats.org/plugin/bukkit/VerityAI/33005)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-GPL-blue)](LICENSE)
 
 </div>
 
@@ -138,9 +139,23 @@ mvn clean package
 ```
 The finished jar is written to `target/VerityAI.jar`.
 
-## 📄 License
+## 📜 License
 
-MIT
+VerityAI is free and open-source software licensed under the **GNU General Public License v3.0 (GPL-3.0)**.
+
+You are free to:
+
+* ✅ Use VerityAI for personal or commercial purposes
+* ✅ Study and modify the source code
+* ✅ Fork and redistribute modified versions
+* ✅ Distribute copies of the plugin
+
+When redistributing VerityAI or a modified version, you must comply with the terms of the **GPL-3.0** license.
+
+The full license text is available in the [`LICENSE`](LICENSE) file.
+
+**Copyright © 2026 TheROMZ52**
+
 ## 🚀 Support
 
 If you find a bug or have a suggestion, please create an issue or contact the developer.
