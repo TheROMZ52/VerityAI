@@ -111,6 +111,9 @@ public class ConfigManager {
     private boolean luckPermsEnabled;
     private boolean essentialsXEnabled;
     private String mapWebUrl;
+    private boolean blueMapEnabled;
+    private boolean dynmapEnabled;
+    private String preferredMapProvider;
 
     // economy.* (only meaningful when integrations.vault is on and Vault is actually hooked)
     private boolean economyEnabled;
@@ -265,6 +268,9 @@ public class ConfigManager {
         this.luckPermsEnabled = c.getBoolean("integrations.luckperms", true);
         this.essentialsXEnabled = c.getBoolean("integrations.essentialsx", true);
         this.mapWebUrl = c.getString("integrations.map-web-url", "");
+        this.blueMapEnabled = c.getBoolean("integrations.map.bluemap", true);
+        this.dynmapEnabled = c.getBoolean("integrations.map.dynmap", true);
+        this.preferredMapProvider = c.getString("integrations.map.preferred-provider", "auto");
 
         this.economyEnabled = c.getBoolean("economy.enabled", false);
         this.economyGivePermission = c.getString("economy.give-permission", "verity.economy.give");
@@ -497,6 +503,9 @@ public class ConfigManager {
     }
 
     public String getMapWebUrl() { return mapWebUrl; }
+    public boolean isBlueMapIntegrationEnabled() { return blueMapEnabled; }
+    public boolean isDynmapIntegrationEnabled() { return dynmapEnabled; }
+    public String getPreferredMapProvider() { return preferredMapProvider; }
 
     public boolean isCommandsEnabled() { return commandsEnabled; }
     public String getCommandRunAs() { return commandRunAs; }

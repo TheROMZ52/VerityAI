@@ -24,8 +24,8 @@ VerityAI allows players to chat directly with an AI assistant inside Minecraft w
 - 🔄 Automatic API key fallback
 - 🎭 Multiple personality presets
 - 📊 Usage statistics
-- 🗺️ In-game mini-map support
-- 📝 Personal reminders and tasks
+- 🗺️ In-game mini-map support, plus live BlueMap/Dynmap integration (auto-detected)
+- 📝 Personal reminders and tasks, with per-player timezone support
 - 🎯 AI-generated quests
 - 📚 In-game tutorials and help
 - 💡 Player feedback and correction system
@@ -90,7 +90,7 @@ VerityAI automatically switches to another key if the current key fails or reach
 | `/verity map` | Show in-chat mini-map |
 | `/verity stats` | Show usage statistics |
 | `/verity model [name]` | View or switch AI model |
-| `/verity task <add\|remove\|list>` | Manage personal reminders |
+| `/verity task <add\|remove\|list\|timezone> [args]` | Manage personal reminders (set your own UTC offset if you're not in the same timezone as the server) |
 | `/verity quest [interval <minutes>]` | Generate a quest, or configure automatic quests for everyone online |
 | `/verity tutorial <topic>` | Get in-game help |
 | `/verity feedback <good\|bad> [correction]` | Submit AI feedback |
@@ -109,6 +109,8 @@ VerityAI can integrate with these plugins if installed:
 - Vault
 - LuckPerms
 - Essentials
+- BlueMap
+- Dynmap
 
 All dependencies are optional. VerityAI works without them.
 

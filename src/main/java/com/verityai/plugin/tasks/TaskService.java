@@ -11,6 +11,9 @@ import java.io.File;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +28,16 @@ import java.util.logging.Level;
  * on the main thread. A reminder only actually reaches the player if they're
  * online at that exact minute — there's no offline mail/queue here, just a
  * lightweight in-game nudge, which keeps this simple and dependency-free.
+ *
+ * Timezones: "8:00" only means the same thing to every player if the server
+ * and every player share a timezone, which usually isn't true (e.g. a server
+ * hosted in Germany with a player in Iran — 3.5 hours apart). Minecraft/Bukkit
+ * has no reliable way to detect a player's real-world timezone automatically,
+ * so each player can optionally set their own UTC offset with
+ * /verity task timezone <+HH:mm>; their reminder times are then interpreted
+ * against THAT offset instead of the server JVM's local clock. Players who
+ * never set one keep the old behavior (server's local time) — fully backward
+ * compatible.
  */
 public class TaskService {
 
@@ -34,6 +47,8 @@ public class TaskService {
     private final VerityAI plugin;
     private final File folder;
     private final Map<UUID, List<Reminder>> cache = new ConcurrentHashMap<>();
+    /** Per-player UTC offset override; a player with no entry uses the server's local time zone. */
+    private final Map<UUID, ZoneOffset> timezoneCache = new ConcurrentHashMap<>();
     private final Set<UUID> dirty = ConcurrentHashMap.newKeySet();
 
     public TaskService(VerityAI plugin) {
@@ -74,6 +89,14 @@ public class TaskService {
                     // skip a malformed row rather than failing the whole load
                 }
             }
+            String tz = yaml.getString("timezone-offset", null);
+            if (tz != null && !tz.isBlank()) {
+                try {
+                    timezoneCache.put(id, ZoneOffset.of(tz));
+                } catch (DateTimeParseException ignored) {
+                    // corrupted/hand-edited value — fall back to server default rather than fail the whole load
+                }
+            }
             return result;
         });
     }
@@ -99,15 +122,74 @@ public class TaskService {
         return removed;
     }
 
+    /**
+     * Sets this player's personal UTC offset (e.g. "+03:30" for Iran Standard
+     * Time), used to interpret their reminder times instead of the server's
+     * local clock. Accepts "+HH:mm", "-HH:mm", or a bare "+H"/"-H". Returns
+     * false if the text couldn't be parsed as a valid offset (config/state
+     * unchanged in that case).
+     */
+    public boolean setTimezone(UUID uuid, String offsetText) {
+        ZoneOffset offset;
+        try {
+            offset = parseOffset(offsetText);
+        } catch (Exception e) {
+            return false;
+        }
+        timezoneCache.put(uuid, offset);
+        loadIfAbsent(uuid); // ensure the reminders list is loaded before we mark this uuid dirty
+        dirty.add(uuid);
+        return true;
+    }
+
+    /** Parses "+3", "-5", "+03:30", "-5:00", or "Z"/"0" into a ZoneOffset. */
+    private ZoneOffset parseOffset(String text) {
+        String t = text.trim();
+        if (t.equalsIgnoreCase("Z") || t.equals("0") || t.equals("+0") || t.equals("-0")) {
+            return ZoneOffset.UTC;
+        }
+        var matcher = java.util.regex.Pattern.compile("^([+-])(\\d{1,2})(?::?(\\d{2}))?$").matcher(t);
+        if (!matcher.matches()) {
+            throw new IllegalArgumentException("Not a valid UTC offset: " + text);
+        }
+        int hours = Integer.parseInt(matcher.group(2));
+        int minutes = matcher.group(3) != null ? Integer.parseInt(matcher.group(3)) : 0;
+        String normalized = matcher.group(1) + String.format("%02d:%02d", hours, minutes);
+        return ZoneOffset.of(normalized);
+    }
+
+    /** Clears a player's personal timezone override, reverting them to the server's local time. */
+    public void clearTimezone(UUID uuid) {
+        if (timezoneCache.remove(uuid) != null) {
+            loadIfAbsent(uuid);
+            dirty.add(uuid);
+        }
+    }
+
+    /** A human-readable description of what clock this player's reminders currently use. */
+    public String describeTimezone(UUID uuid) {
+        ZoneOffset offset = timezoneCache.get(uuid);
+        return offset == null ? "server's local time (no personal timezone set)" : "UTC" + offset;
+    }
+
     /** Checked once a minute (main thread): fires any due reminder for currently online players. */
     public void checkDue() {
-        String today = LocalDate.now().toString();
-        LocalTime now = LocalTime.now();
-
         for (Player player : Bukkit.getOnlinePlayers()) {
             UUID uuid = player.getUniqueId();
             List<Reminder> reminders = loadIfAbsent(uuid); // cheap no-op once cached
             if (reminders.isEmpty()) continue;
+
+            ZoneOffset offset = timezoneCache.get(uuid);
+            LocalTime now;
+            String today;
+            if (offset != null) {
+                OffsetDateTime nowForPlayer = OffsetDateTime.now(offset);
+                now = nowForPlayer.toLocalTime();
+                today = nowForPlayer.toLocalDate().toString();
+            } else {
+                now = LocalTime.now();
+                today = LocalDate.now().toString();
+            }
 
             for (int i = 0; i < reminders.size(); i++) {
                 Reminder r = reminders.get(i);
@@ -125,13 +207,13 @@ public class TaskService {
         for (UUID uuid : Set.copyOf(dirty)) {
             List<Reminder> reminders = cache.get(uuid);
             if (reminders != null) {
-                save(uuid, reminders);
+                save(uuid, reminders, timezoneCache.get(uuid));
             }
             dirty.remove(uuid);
         }
     }
 
-    private void save(UUID uuid, List<Reminder> reminders) {
+    private void save(UUID uuid, List<Reminder> reminders, ZoneOffset offset) {
         YamlConfiguration yaml = new YamlConfiguration();
         List<Map<String, Object>> rows = new ArrayList<>();
         for (Reminder r : reminders) {
@@ -139,6 +221,9 @@ public class TaskService {
                     "message", r.message(), "lastTriggeredDate", r.lastTriggeredDate()));
         }
         yaml.set("reminders", rows);
+        if (offset != null) {
+            yaml.set("timezone-offset", offset.getId());
+        }
         try {
             yaml.save(fileFor(uuid));
         } catch (IOException e) {

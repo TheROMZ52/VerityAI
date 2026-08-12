@@ -44,6 +44,13 @@ public class FunctionCallService {
         tools.add(tool("get_craftable_items", "Check the player's inventory and list what they can craft "
                 + "right now with the materials they're carrying.", emptyParams()));
 
+        if (plugin.getHookManager().isMapAvailable()) {
+            tools.add(tool("get_map_info", "Get a link to the live web map (BlueMap/Dynmap, whichever is active) "
+                    + "centered on the player's current position, and whether they're currently visible on it. "
+                    + "Use this when a player asks to see themselves on the map, share their location on the map, "
+                    + "or asks if the live map is available.", emptyParams()));
+        }
+
         if (plugin.getConfigManager().isLongTermEnabled() && plugin.getConfigManager().isAutoRememberEnabled()) {
             JsonObject params = new JsonObject();
             JsonObject props = new JsonObject();
@@ -166,6 +173,7 @@ public class FunctionCallService {
             case "get_nearest_stronghold" -> getNearestStronghold(player);
             case "get_environment" -> getEnvironment(player);
             case "get_craftable_items" -> getCraftableItems(player);
+            case "get_map_info" -> getMapInfo(player);
             case "remember_fact" -> rememberFact(player, args);
             case "run_command" -> runCommand(player, args);
             case "get_balance" -> getBalance(player);
@@ -369,6 +377,27 @@ private String getPlayerStatus(Player player) {
         String category = args.has("category") ? args.get("category").getAsString() : "general";
         plugin.getLongTermMemoryStore().addCategorizedFact(player.getUniqueId(), category, fact);
         return "Remembered (" + category + ").";
+    }
+
+    private String getMapInfo(Player player) {
+        var hooks = plugin.getHookManager();
+        var providerName = hooks.getActiveMapProviderName();
+        if (providerName.isEmpty()) {
+            return "No live map (BlueMap/Dynmap) is currently active.";
+        }
+        boolean visible = hooks.isPlayerVisibleOnMap(player);
+        String link = hooks.getPlayerMapUrl(player)
+                .or(() -> hooks.getMapUrl())
+                .orElse(null);
+        StringBuilder sb = new StringBuilder();
+        sb.append("Live map provider: ").append(providerName.get());
+        sb.append(", player visible on map: ").append(visible);
+        if (link != null) {
+            sb.append(", link: ").append(link);
+        } else {
+            sb.append(", no public map URL is configured (ask an admin to set integrations.map-web-url).");
+        }
+        return sb.toString();
     }
 
     private String getBalance(Player player) {

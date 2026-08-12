@@ -155,6 +155,7 @@ public class VerityAI extends JavaPlugin {
         }
         if (hookManager != null) {
             hookManager.unregisterPlaceholders();
+            hookManager.unhookMapIntegrations();
         }
         getServer().getServicesManager().unregisterAll(this);
         getLogger().info("VerityAI disabled.");

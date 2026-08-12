@@ -1,6 +1,8 @@
 package com.verityai.plugin.integration;
 
 import com.verityai.plugin.VerityAI;
+import com.verityai.plugin.integration.map.MapIntegrationManager;
+import com.verityai.plugin.integration.map.MapProvider;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
@@ -26,9 +28,11 @@ public class HookManager {
     private net.luckperms.api.LuckPerms luckPerms;
     private com.earth2me.essentials.Essentials essentials;
     private VerityPlaceholderExpansion placeholderExpansion;
+    private final MapIntegrationManager mapIntegrationManager;
 
     public HookManager(VerityAI plugin) {
         this.plugin = plugin;
+        this.mapIntegrationManager = new MapIntegrationManager(plugin);
     }
 
     public void hookAll() {
@@ -36,6 +40,7 @@ public class HookManager {
         hookVault();
         hookLuckPerms();
         hookEssentials();
+        mapIntegrationManager.hookAll();
     }
 
     private void hookPlaceholderApi() {
@@ -169,6 +174,34 @@ public class HookManager {
         } catch (Throwable t) {
             return List.of();
         }
+    }
+
+    // ---- Map providers (BlueMap / Dynmap / future others) ----
+    /** Exposed directly so callers can add new logic per-provider later without HookManager needing to know about it. */
+    public MapIntegrationManager getMapIntegrationManager() { return mapIntegrationManager; }
+
+    public boolean isMapAvailable() { return mapIntegrationManager.isAnyMapAvailable(); }
+
+    /** Name of whichever map provider is currently active ("BlueMap"/"Dynmap"), or empty if none. */
+    public Optional<String> getActiveMapProviderName() {
+        return mapIntegrationManager.getActiveProvider().map(MapProvider::getName);
+    }
+
+    public Optional<String> getMapUrl() {
+        return mapIntegrationManager.getActiveProvider().flatMap(MapProvider::getMapUrl);
+    }
+
+    public Optional<String> getPlayerMapUrl(Player player) {
+        return mapIntegrationManager.getActiveProvider().flatMap(p -> p.getPlayerMapUrl(player));
+    }
+
+    public boolean isPlayerVisibleOnMap(Player player) {
+        return mapIntegrationManager.getActiveProvider().map(p -> p.isPlayerVisible(player)).orElse(false);
+    }
+
+    /** Called from VerityAI#onDisable to cleanly release the BlueMap/Dynmap listeners. */
+    public void unhookMapIntegrations() {
+        mapIntegrationManager.unhookAll();
     }
 
     public boolean isPlaceholderApiHooked() { return placeholderApiHooked; }

@@ -27,7 +27,7 @@ public class VerityCommand implements CommandExecutor, TabCompleter {
             "owner", "op", "map", "stats", "model", "task", "quest", "tutorial", "feedback"
     );
 
-    private static final List<String> TASK_SUBCOMMANDS = List.of("add", "remove", "list");
+    private static final List<String> TASK_SUBCOMMANDS = List.of("add", "remove", "list", "timezone");
     private static final List<String> OP_SUBCOMMANDS = List.of("add", "remove", "list");
 
     private final VerityAI plugin;
@@ -180,6 +180,7 @@ public class VerityCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(Component.text(String.format("Hooks: PlaceholderAPI=%s Vault=%s LuckPerms=%s EssentialsX=%s",
                 hooks.isPlaceholderApiHooked(), hooks.isVaultHooked(), hooks.isLuckPermsHooked(), hooks.isEssentialsHooked()),
                 NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("Live map: " + hooks.getActiveMapProviderName().orElse("none"), NamedTextColor.GRAY));
         return true;
     }
 
@@ -335,9 +336,21 @@ public class VerityCommand implements CommandExecutor, TabCompleter {
         plugin.getWorldQueryService().buildMiniMap(player).thenAccept(map -> {
             player.sendMessage(Component.text("--- Nearby map (you are P) ---", NamedTextColor.AQUA));
             player.sendMessage(map);
-            String mapUrl = plugin.getConfigManager().getMapWebUrl();
-            if (mapUrl != null && !mapUrl.isBlank()) {
-                player.sendMessage(Component.text("Full web map: " + mapUrl, NamedTextColor.BLUE));
+
+            var hooks = plugin.getHookManager();
+            var providerName = hooks.getActiveMapProviderName();
+            if (providerName.isPresent()) {
+                String visibility = hooks.isPlayerVisibleOnMap(player) ? "you're visible on it" : "you may not be visible on it";
+                player.sendMessage(Component.text(providerName.get() + " is live (" + visibility + ").", NamedTextColor.DARK_AQUA));
+                hooks.getPlayerMapUrl(player).ifPresentOrElse(
+                        url -> player.sendMessage(Component.text("Jump to your spot: " + url, NamedTextColor.BLUE)),
+                        () -> hooks.getMapUrl().ifPresent(url ->
+                                player.sendMessage(Component.text("Full web map: " + url, NamedTextColor.BLUE))));
+            } else {
+                String mapUrl = plugin.getConfigManager().getMapWebUrl();
+                if (mapUrl != null && !mapUrl.isBlank()) {
+                    player.sendMessage(Component.text("Full web map: " + mapUrl, NamedTextColor.BLUE));
+                }
             }
         });
         return true;
@@ -432,8 +445,32 @@ public class VerityCommand implements CommandExecutor, TabCompleter {
                         ? Component.text("Reminder removed.", NamedTextColor.GREEN)
                         : Component.text("No reminder with that id.", NamedTextColor.RED));
             }
+            case "timezone" -> {
+                if (args.length < 3) {
+                    player.sendMessage(Component.text("Your reminders currently use: "
+                            + tasks.describeTimezone(player.getUniqueId()), NamedTextColor.AQUA));
+                    player.sendMessage(Component.text("Usage: /verity task timezone <+HH:mm|reset>  — e.g. "
+                            + "+03:30 for Iran, +02:00 for Germany. This fixes reminder times when you and the "
+                            + "server aren't in the same timezone.", NamedTextColor.GRAY));
+                    return true;
+                }
+                if (args[2].equalsIgnoreCase("reset") || args[2].equalsIgnoreCase("clear")) {
+                    tasks.clearTimezone(player.getUniqueId());
+                    player.sendMessage(Component.text("Reminder timezone reset to the server's local time.", NamedTextColor.GREEN));
+                    return true;
+                }
+                boolean ok = tasks.setTimezone(player.getUniqueId(), args[2]);
+                if (ok) {
+                    player.sendMessage(Component.text("Your reminders now use " + tasks.describeTimezone(player.getUniqueId())
+                            + ". Existing reminder times are unchanged — re-add any that need adjusting.", NamedTextColor.GREEN));
+                } else {
+                    player.sendMessage(Component.text("Couldn't parse that as a UTC offset — try something like +03:30 or -05:00.",
+                            NamedTextColor.RED));
+                }
+            }
             default -> {
                 var list = tasks.list(player.getUniqueId());
+                player.sendMessage(Component.text("Reminders use: " + tasks.describeTimezone(player.getUniqueId()), NamedTextColor.DARK_GRAY));
                 if (list.isEmpty()) {
                     player.sendMessage(Component.text("You have no reminders. Add one: /verity task add <HH:mm> <message>", NamedTextColor.GRAY));
                 } else {
@@ -553,7 +590,7 @@ public class VerityCommand implements CommandExecutor, TabCompleter {
     private void sendUsage(CommandSender sender) {
         sender.sendMessage(Component.text(
                 "Usage: /verity <reload|clear [player]|info|debug|toggle|chat|personality [name]|owner [player]|op <add|remove|list> [player]|"
-                        + "map|stats|model [name]|task <add|remove|list>|quest|tutorial <topic>|feedback <good|bad> [correction]>",
+                        + "map|stats|model [name]|task <add|remove|list|timezone> [args]|quest|tutorial <topic>|feedback <good|bad> [correction]>",
                 NamedTextColor.YELLOW));
     }
 }

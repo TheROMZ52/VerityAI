@@ -227,8 +227,23 @@ integrations:
   luckperms: true
   essentialsx: true
   # Optional link to a web map (Dynmap/BlueMap/etc.) shown alongside
-  # /verity map. Leave blank to only show the in-chat mini-map.
+  # /verity map. Leave blank to only show the in-chat mini-map. If either
+  # live integration below is active, set this to that map's public URL —
+  # VerityAI doesn't try to guess it (BlueMap/Dynmap's own webserver address
+  # usually isn't the public one, e.g. behind a reverse proxy).
   map-web-url: ""
+  # Live map integrations: lets Verity know a player's position is visible
+  # on a web map, and build a direct link to it. Each only activates if that
+  # plugin is actually installed — safe to leave both true even if neither is.
+  # Nothing here polls in the background; data is only fetched when a player
+  # actually asks (/verity map, or the AI asking the get_map_info function).
+  map:
+    bluemap: true
+    dynmap: true
+    # If BOTH BlueMap and Dynmap are installed, which one Verity prefers:
+    # "auto" (whichever loaded first, BlueMap checked before Dynmap),
+    # "bluemap", or "dynmap".
+    preferred-provider: "auto"
 
 # Vault economy features for Verity. Requires integrations.vault: true above
 # AND a Vault-compatible economy plugin (EssentialsX Economy, CMI, etc.)

@@ -229,6 +229,14 @@ public class ContextBuilder {
         } catch (Exception ignored) {
             // Best-effort — never block the reply on a slow lookup.
         }
+
+        var hooks = plugin.getHookManager();
+        var providerName = hooks.getActiveMapProviderName();
+        if (providerName.isPresent()) {
+            sb.append("A live web map (").append(providerName.get())
+              .append(") is available — if the player wants a link to their own position on it, ")
+              .append("use the get_map_info tool rather than guessing a URL.\n");
+        }
     }
 
     private String capitalize(String text) {
