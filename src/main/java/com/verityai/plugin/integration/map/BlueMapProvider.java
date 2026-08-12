@@ -10,6 +10,7 @@ import java.util.function.Consumer;
 
 /**
  * BlueMap integration.
+ *
  * BlueMap loads its API asynchronously and can be enabled/disabled
  * independently of server startup.
  */
@@ -26,17 +27,17 @@ public class BlueMapProvider implements MapProvider {
     private final Consumer<BlueMapAPI> onDisableListener;
 
     public BlueMapProvider(VerityAI plugin) {
-        // Store the plugin before creating listeners that use it.
+        // Store the plugin instance first.
         this.plugin = plugin;
 
-        // Create the enable listener after plugin has been initialized.
-        this.onEnableListener = a -> {
-            this.api = a;
-            this.plugin.getLogger().info("VerityAI: BlueMap became available.");
+        // Capture the constructor parameter directly.
+        this.onEnableListener = api -> {
+            this.api = api;
+            plugin.getLogger().info("VerityAI: BlueMap became available.");
         };
 
         // Create the disable listener.
-        this.onDisableListener = a -> this.api = null;
+        this.onDisableListener = api -> this.api = null;
     }
 
     public void register() {
@@ -68,7 +69,9 @@ public class BlueMapProvider implements MapProvider {
     @Override
     public Optional<String> getMapUrl() {
         // The configured public URL is the source of truth.
-        if (!isAvailable()) return Optional.empty();
+        if (!isAvailable()) {
+            return Optional.empty();
+        }
 
         String configured = plugin.getConfigManager().getMapWebUrl();
 
