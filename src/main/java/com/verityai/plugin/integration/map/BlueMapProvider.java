@@ -22,22 +22,24 @@ public class BlueMapProvider implements MapProvider {
     // Current BlueMap API instance.
     private volatile BlueMapAPI api;
 
-    // Listener references are kept so HookManager can unregister them cleanly.
-    private final Consumer<BlueMapAPI> onEnableListener;
-    private final Consumer<BlueMapAPI> onDisableListener;
+    // Listener references used for registration and cleanup.
+    private Consumer<BlueMapAPI> onEnableListener;
+    private Consumer<BlueMapAPI> onDisableListener;
 
     public BlueMapProvider(VerityAI plugin) {
         // Store the plugin instance first.
         this.plugin = plugin;
 
-        // Capture the constructor parameter directly.
+        // Create the BlueMap enable listener.
         this.onEnableListener = api -> {
             this.api = api;
-            plugin.getLogger().info("VerityAI: BlueMap became available.");
+            this.plugin.getLogger().info("VerityAI: BlueMap became available.");
         };
 
-        // Create the disable listener.
-        this.onDisableListener = api -> this.api = null;
+        // Create the BlueMap disable listener.
+        this.onDisableListener = api -> {
+            this.api = null;
+        };
     }
 
     public void register() {
@@ -68,11 +70,12 @@ public class BlueMapProvider implements MapProvider {
 
     @Override
     public Optional<String> getMapUrl() {
-        // The configured public URL is the source of truth.
+        // BlueMap must currently be available.
         if (!isAvailable()) {
             return Optional.empty();
         }
 
+        // Read the configured public map URL.
         String configured = plugin.getConfigManager().getMapWebUrl();
 
         return (configured == null || configured.isBlank())
@@ -82,7 +85,7 @@ public class BlueMapProvider implements MapProvider {
 
     @Override
     public Optional<String> getPlayerMapUrl(Player player) {
-        // Get the current API instance.
+        // Get the current BlueMap API instance.
         BlueMapAPI current = api;
 
         if (current == null || player == null) {
@@ -107,6 +110,7 @@ public class BlueMapProvider implements MapProvider {
             // Use the first available map for this world.
             String mapId = world.get().getMaps().iterator().next().getId();
 
+            // Get the player's current location.
             var loc = player.getLocation();
 
             // Build a best-effort BlueMap client URL.
@@ -129,7 +133,7 @@ public class BlueMapProvider implements MapProvider {
 
     @Override
     public boolean isPlayerVisible(Player player) {
-        // Get the current API instance.
+        // Get the current BlueMap API instance.
         BlueMapAPI current = api;
 
         if (current == null || player == null) {
@@ -137,7 +141,7 @@ public class BlueMapProvider implements MapProvider {
         }
 
         try {
-            // A player is considered visible when their world is rendered by BlueMap.
+            // A player is visible when their world is rendered by BlueMap.
             return current.getWorld(player.getWorld()).isPresent();
 
         } catch (Throwable t) {
