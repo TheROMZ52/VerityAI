@@ -15,7 +15,8 @@
 
 
 
-VerityAI allows players to chat directly with an AI assistant inside Minecraft with support for multiple AI models, conversation memory, commands, and server integrations.
+VerityAI allows players to chat directly with an AI assistant inside Minecraft with support for multiple AI models, conversation memory, commands, and server integrations
+Just to clarify: this plugin is called **Verity**, but it has absolutely no connection to the **Verity mod**. They’re completely separate projects — the name is the only similarity.
 
 ## ✨ Features
 
