@@ -8,6 +8,7 @@
 # VerityAI
 
 A tiny AI co-pilot for your Minecraft server — hopefully less laggy than the players.
+
 **An AI assistant plugin for Minecraft (Paper) servers, powered by [OpenRouter](https://openrouter.ai).**
 
 [![Modrinth](https://img.shields.io/badge/Modrinth-VerityAI-1bd96a?logo=modrinth&logoColor=white)](https://modrinth.com/plugin/verityai)
