@@ -1,6 +1,7 @@
 # VerityAI
 
 یه هم‌تیمی هوش مصنوعی برای سرور ماینکرفتت؛ فقط حواست باشه کلید API رو با رمز ادمین اشتباه نگیری.
+
 **افزونهٔ دستیار هوش مصنوعی برای سرورهای Minecraft مبتنی بر Paper، با استفاده از [OpenRouter](https://openrouter.ai).**
 
 [![Modrinth](https://img.shields.io/badge/Modrinth-VerityAI-1bd96a?logo=modrinth&logoColor=white)](https://modrinth.com/plugin/verityai)
