@@ -1,3 +1,5 @@
+**Languages:** [English](README.md) · [فارسی](README.fa.md)
+
 <div align="center">
 
   ![verity banner](https://cdn.modrinth.com/data/cached_images/a20fc1f9c30851b62c2264a9c179e817654f2652.jpeg)
